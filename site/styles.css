@@ -309,7 +309,7 @@ pre:hover .pre-copy, .pre-copy:focus-visible { opacity: 1; }
 .coll-card-head strong { font-family: var(--font-mono); font-size: 1rem; }
 .coll-card .count { background: color-mix(in srgb, var(--accent) 13%, transparent); color: var(--accent); border: 1px solid color-mix(in srgb, var(--accent) 32%, transparent); border-radius: 999px; padding: 1px 9px; font-size: .74rem; font-weight: 700; }
 .coll-card p { margin: 0; color: var(--muted); font-size: .88rem; }
-/* /best — editorial top 10 */
+/* /best — the top 10 by score */
 .best-wrap { max-width: 46rem; }
 .best-intro { color: var(--muted); line-height: 1.65; margin: 0 0 26px; max-width: 66ch; }
 .best-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 12px; }
@@ -338,6 +338,16 @@ pre:hover .pre-copy, .pre-copy:focus-visible { opacity: 1; }
 .best-why { margin: 0 0 8px; color: var(--text); line-height: 1.6; }
 .best-meta { margin: 0; color: var(--muted); font-size: .85rem; font-family: var(--font-mono); display: flex; flex-wrap: wrap; gap: 4px 8px; align-items: center; }
 .best-note { margin-top: 18px; line-height: 1.6; }
+.best-section { font-size: 1rem; margin: 26px 0 12px; color: var(--muted); font-weight: 700; letter-spacing: .04em; text-transform: uppercase; }
+.best-score { font-family: var(--font-mono); font-weight: 700; font-size: .85rem; color: var(--accent); margin-left: auto; }
+.best-editorial, .best-partner { margin: 0 0 8px; color: var(--muted); line-height: 1.55; font-size: .9rem; }
+.best-podium { border-color: color-mix(in srgb, var(--accent) 45%, var(--border)); }
+.best-podium-1 { background: color-mix(in srgb, var(--accent) 7%, var(--panel)); }
+.best-weights { border-collapse: collapse; margin: 0 0 18px; }
+.best-weights th, .best-weights td { text-align: left; padding: 6px 18px 6px 0; border-bottom: 1px solid var(--border); }
+.best-weights .num { text-align: right; font-family: var(--font-mono); padding-right: 0; }
+.best-method { max-width: 46rem; line-height: 1.65; }
+.best-method li { margin-bottom: 8px; }
 @media (max-width: 480px) {
   .best-item { grid-template-columns: 2.4rem 1fr; gap: 10px; padding: 14px; }
   .best-rank { font-size: 1.3rem; }
