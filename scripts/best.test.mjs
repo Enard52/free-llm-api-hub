@@ -4,7 +4,8 @@
 // to the data and to the shared checker in lib/best.mjs (#165).
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync, existsSync } from 'node:fs';
+import { readFileSync, writeFileSync, existsSync } from 'node:fs';
+import { tmpFile } from './lib/tmp.mjs';
 import { execFileSync } from 'node:child_process';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -72,10 +73,9 @@ test('/api/v1/best.json does not expose an unverified pick', () => {
     execFileSync(process.execPath, ['scripts/build.mjs'], { cwd: ROOT, stdio: 'pipe' });
   }
   const payload = JSON.parse(readFileSync(p, 'utf8'));
-  assert.ok(payload.picks.length > 0, 'best.json should list editorial picks');
+  assert.ok(payload.picks.length > 0, 'best.json should list picks');
   for (const pick of payload.picks) {
     assert.equal(pick.verified, true, `${pick.slug}: /api/v1/best.json must not expose an unverified pick`);
-    assert.ok(pick.why && String(pick.why).trim(), `${pick.slug}: pick is missing why`);
   }
 });
 
@@ -294,4 +294,38 @@ test('a tier near a threshold is flagged and never penalised', () => {
   assert.equal(scoreProvider(near).boundary, true);
   assert.equal(scoreProvider(far).boundary, false);
   assert.equal(scoreProvider(near).total, scoreProvider(far).total, 'the flag changes nothing in the score');
+});
+
+// ---------- partners on the podium (lib/best.mjs) ----------
+import { topEntries, partnerErrors, PODIUM_SIZE } from './lib/best.mjs';
+
+test('a partner is accepted on the podium with a note and rejected below it', () => {
+  const providers = scoreData().providers;
+  const opts = { editorial: JSON.parse(readFileSync(join(ROOT, 'data/editorial.json'), 'utf8')), probeReport: probeData(), now: NOW };
+  const top = topEntries(providers, opts);
+  assert.ok(top.length > PODIUM_SIZE, 'the data has a top longer than the podium');
+  const mark = (slug) => providers.map((p) => (p.slug === slug ? { ...p, partner: true, partner_note: 'Sponsors the project.' } : p));
+  assert.deepEqual(partnerErrors(topEntries(mark(top[0].p.slug), opts)), [], 'a partner on rank 1 is accepted');
+  assert.deepEqual(partnerErrors(topEntries(mark(top[PODIUM_SIZE - 1].p.slug), opts)), [], 'a partner on rank 3 is accepted');
+  const below = partnerErrors(topEntries(mark(top[PODIUM_SIZE].p.slug), opts));
+  assert.equal(below.length, 1, 'a partner on rank 4 is a validation error');
+  assert.match(below[0], /only on the podium/);
+  const noNote = providers.map((p) => (p.slug === top[0].p.slug ? { ...p, partner: true } : p));
+  assert.match(partnerErrors(topEntries(noNote, opts))[0], /without a partner_note/);
+});
+
+test('being a partner leaves the order of the top identical', () => {
+  const providers = scoreData().providers;
+  const opts = { editorial: JSON.parse(readFileSync(join(ROOT, 'data/editorial.json'), 'utf8')), probeReport: probeData(), now: NOW };
+  const order = (ps) => topEntries(ps, opts).map((e) => [e.p.slug, e.total]);
+  const first = topEntries(providers, opts)[0].p.slug;
+  assert.deepEqual(order(providers.map((p) => (p.slug === first ? { ...p, partner: true, partner_note: 'x' } : p))), order(providers));
+});
+
+test('validate rejects a partner without its public note', () => {
+  const data = scoreData();
+  data.providers[0].partner = true;
+  const fixture = tmpFile('providers.json');
+  writeFileSync(fixture, JSON.stringify(data));
+  assert.throws(() => execFileSync(process.execPath, ['scripts/validate.mjs', fixture], { cwd: ROOT, stdio: 'pipe' }), (e) => /needs a partner_note/.test(String(e.stderr)));
 });

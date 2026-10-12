@@ -460,35 +460,59 @@ test('the committed OG manifest matches the current dataset', () => {
   assert.deepEqual(manifest, buildOgManifest(providers));
 });
 
-test('the README top-20 table renders every editorial pick with its verified date', () => {
+import { topEntries } from './lib/best.mjs';
+const topOfData = () => {
   const data = JSON.parse(readFileSync(DATA, 'utf8'));
-  const best = JSON.parse(readFileSync(join(ROOT, 'data/best.json'), 'utf8'));
+  return topEntries(data.providers, {
+    editorial: JSON.parse(readFileSync(join(ROOT, 'data/editorial.json'), 'utf8')),
+    probeReport: JSON.parse(readFileSync(join(ROOT, 'data/probe-report.json'), 'utf8')),
+    now: new Date(data.generated + 'T12:00:00Z'),
+  });
+};
+
+test('the README top-10 table renders every provider of the score top with its score and verified date', () => {
   const readme = readFileSync(join(ROOT, 'README.md'), 'utf8');
-  const bySlug = new Map(data.providers.map((x) => [x.slug, x]));
-  assert.equal(best.entries.length, 20, 'README is the editorial top 20, not the full list');
-  for (const e of best.entries) {
-    const p = bySlug.get(e.slug);
-    assert.ok(p, `${e.slug} is not in the dataset`);
-    assert.ok(readme.includes(`[${p.name}](${p.docs_url})`), `${e.slug}: README links the provider docs`);
-    assert.ok(readme.includes(`✅ ${p.last_verified}`), `${e.slug}: README shows the verification date`);
+  const top = topOfData();
+  assert.ok(top.length > 0 && top.length <= 10, 'the README shows up to ten providers');
+  for (const e of top) {
+    assert.ok(readme.includes(`[${e.p.name}](${e.p.docs_url})`), `${e.p.slug}: README links the provider docs`);
+    assert.ok(readme.includes(`✅ ${e.p.last_verified}`), `${e.p.slug}: README shows the verification date`);
+    assert.ok(readme.includes(`${e.total.toFixed(1)}<br><sub>${e.confirmed} of ${e.of} inputs</sub>`), `${e.p.slug}: README shows the score and its confirmed inputs`);
   }
+  assert.ok(!/top 20|top-20/i.test(readme), 'no top 20 text remains in the README');
 });
 
-test('/api/v1/best.json exposes the editorial top 20 with full profiles', () => {
+test('/api/v1/best.json exposes the score top with its parts and full profiles', () => {
   const p = join(ROOT, 'site/api/v1/best.json');
-  if (!existsSync(p)) run(['scripts/build.mjs']);
+  run(['scripts/build.mjs']);
   const payload = JSON.parse(readFileSync(p, 'utf8'));
-  const best = JSON.parse(readFileSync(join(ROOT, 'data/best.json'), 'utf8'));
-  assert.equal(payload.count, 20, 'best.json carries the top 20 count');
-  assert.equal(payload.picks.length, 20, 'best.json lists all 20 picks');
-  assert.equal(payload.updated, best.updated, 'best.json carries the editorial updated date');
+  const top = topOfData();
+  assert.equal(payload.count, top.length, 'best.json carries the top count');
+  assert.equal(payload.picks.length, top.length);
   payload.picks.forEach((pick, i) => {
-    const e = best.entries[i];
     assert.equal(pick.rank, i + 1, `pick ${i} rank`);
-    assert.equal(pick.slug, e.slug, `pick ${i} slug`);
-    assert.equal(pick.why, e.why, `pick ${i} why`);
-    assert.ok(pick.name && pick.free_tier && pick.docs_url, `${e.slug}: pick carries its full profile`);
+    assert.equal(pick.slug, top[i].p.slug, `pick ${i} slug`);
+    assert.equal(pick.podium, i < 3, `pick ${i} podium`);
+    assert.equal(pick.score, Math.round(top[i].total * 10) / 10, `pick ${i} score`);
+    assert.ok(pick.parts && pick.of === 6, `${pick.slug}: pick carries the parts of its score`);
+    assert.ok(pick.name && pick.free_tier && pick.docs_url, `${pick.slug}: pick carries its full profile`);
   });
+});
+
+test('/best shows the podium of three and the methodology page states the rules', () => {
+  run(['scripts/build.mjs']);
+  const top = topOfData();
+  const best = readFileSync(join(ROOT, 'site/best/index.html'), 'utf8');
+  assert.equal((best.match(/class="best-item best-podium /g) || []).length, Math.min(3, top.length), 'three podium cards');
+  assert.equal((best.match(/<li class="best-item/g) || []).length, top.length, 'one card per provider of the top');
+  for (const e of top) assert.ok(best.includes(`href="../p/${e.p.slug}"`), `${e.p.slug} is on /best`);
+  const method = readFileSync(join(ROOT, 'site/best/methodology/index.html'), 'utf8');
+  assert.match(method, /Being a partner scores nothing/);
+  assert.match(method, /editorial rating/);
+  assert.match(method, /30/);
+  assert.match(method, /internal rubric behind those ratings is not published/);
+  assert.match(method, new RegExp(`Data of ${JSON.parse(readFileSync(DATA, 'utf8')).generated}`));
+  assert.match(readFileSync(join(ROOT, 'site/sitemap.xml'), 'utf8'), /<loc>https:\/\/freellmapihub\.com\/best\/methodology\/<\/loc>/);
 });
 
 test('the explorer does not claim a column sort before the user chooses one', () => {
@@ -1757,4 +1781,25 @@ test('long strings in provider notes wrap instead of widening the page on a phon
   // this rule none is, at 360 and 390px. The rule is pinned by text because a browser is not part of the suite.
   const css = readFileSync(join(ROOT, 'site/styles.css'), 'utf8').replace(/\s+/g, ' ');
   assert.match(css, /\.prov-card p, p\.muted \{ overflow-wrap: anywhere; \}/);
+});
+
+test('the /compare/ tables show the score and the model quality tier, in the static pages and the browser bundle', () => {
+  run(['scripts/build.mjs']);
+  const scores = JSON.parse(readFileSync(join(ROOT, 'site/scores.json'), 'utf8')).scores;
+  const dir = readdirSync(join(ROOT, 'site/compare')).find((d) => d.includes('-vs-'));
+  const page = readFileSync(join(ROOT, 'site/compare', dir, 'index.html'), 'utf8');
+  assert.match(page, /<th scope="row">Score<\/th>/);
+  assert.match(page, /<th scope="row">Model quality tier<\/th>/);
+  const [a, b] = dir.split('-vs-');
+  for (const slug of [a, b]) {
+    const sc = scores[slug];
+    if (sc) assert.ok(page.includes(`<strong>${sc.total.toFixed(1)}</strong> / 100`), `${slug}: the page shows its score`);
+  }
+  // the browser view runs the same function: with scores it adds the rows, without them the table is unchanged
+  const bundle = readFileSync(join(ROOT, 'site/shared-compare.js'), 'utf8');
+  assert.match(bundle, /Model quality tier/);
+  const { compareTableHtml } = (new Function('window', bundle + '; return window.FLLM_COMPARE;'))({});
+  const p = JSON.parse(readFileSync(DATA, 'utf8')).providers[0];
+  assert.doesNotMatch(compareTableHtml([p, p]), /Model quality tier/);
+  assert.match(compareTableHtml([p, p], { scores: { [p.slug]: { total: 51.25, confirmed: 4, of: 6, rank: 2 } } }), /<strong>51\.3<\/strong> \/ 100[\s\S]*4 of 6 inputs confirmed · <a href="best\/">#2 in the top 10<\/a>/);
 });
