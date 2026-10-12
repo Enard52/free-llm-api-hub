@@ -1756,3 +1756,24 @@ test('long strings in provider notes wrap instead of widening the page on a phon
   const css = readFileSync(join(ROOT, 'site/styles.css'), 'utf8').replace(/\s+/g, ' ');
   assert.match(css, /\.prov-card p, p\.muted \{ overflow-wrap: anywhere; \}/);
 });
+
+test('the /compare/ tables show the score and the model quality tier, in the static pages and the browser bundle', () => {
+  run(['scripts/build.mjs']);
+  const scores = JSON.parse(readFileSync(join(ROOT, 'site/scores.json'), 'utf8')).scores;
+  const dir = readdirSync(join(ROOT, 'site/compare')).find((d) => d.includes('-vs-'));
+  const page = readFileSync(join(ROOT, 'site/compare', dir, 'index.html'), 'utf8');
+  assert.match(page, /<th scope="row">Score<\/th>/);
+  assert.match(page, /<th scope="row">Model quality tier<\/th>/);
+  const [a, b] = dir.split('-vs-');
+  for (const slug of [a, b]) {
+    const sc = scores[slug];
+    if (sc) assert.ok(page.includes(`<strong>${sc.total.toFixed(1)}</strong> / 100`), `${slug}: the page shows its score`);
+  }
+  // the browser view runs the same function: with scores it adds the rows, without them the table is unchanged
+  const bundle = readFileSync(join(ROOT, 'site/shared-compare.js'), 'utf8');
+  assert.match(bundle, /Model quality tier/);
+  const { compareTableHtml } = (new Function('window', bundle + '; return window.FLLM_COMPARE;'))({});
+  const p = JSON.parse(readFileSync(DATA, 'utf8')).providers[0];
+  assert.doesNotMatch(compareTableHtml([p, p]), /Model quality tier/);
+  assert.match(compareTableHtml([p, p], { scores: { [p.slug]: { total: 51.25, confirmed: 4, of: 6, rank: 2 } } }), /<strong>51\.3<\/strong> \/ 100[\s\S]*4 of 6 inputs confirmed · <a href="best\/">#2 in the top 10<\/a>/);
+});

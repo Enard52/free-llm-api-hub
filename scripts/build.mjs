@@ -19,7 +19,7 @@ import { flattenFieldChanges, groupChangesByWeek, changesRss, weekTitle, formatV
 import { monthlyReport, reportMonths, monthEndDate } from './lib/state.mjs';
 import { githubProfileUrl } from './lib/contributors.mjs';
 import { resolveBestEntries, topEntries, partnerErrors, PODIUM_SIZE } from './lib/best.mjs';
-import { SCORE_WEIGHTS, EDITORIAL_WEIGHT, EDITORIAL_DEFAULT, MATH_INPUTS, MIN_CONFIRMED, TOP_SIZE, EDITORIAL_NOTE_THRESHOLD, STABILITY_MIN_DAYS, STABILITY_MIN_SAMPLES } from './lib/score.mjs';
+import { SCORE_WEIGHTS, EDITORIAL_WEIGHT, EDITORIAL_DEFAULT, MATH_INPUTS, MIN_CONFIRMED, TOP_SIZE, EDITORIAL_NOTE_THRESHOLD, STABILITY_MIN_DAYS, STABILITY_MIN_SAMPLES, rankProviders } from './lib/score.mjs';
 import { openaiClients, litellmYaml } from './lib/client-config.mjs';
 import * as compareLib from './lib/compare.mjs';
 import { requirementsHtml, limitsHtml, glanceHtml, modelsHtml, dataPolicyHtml } from './lib/provider-sections.mjs';
@@ -584,6 +584,9 @@ const topList = topEntries(providers, { editorial: EDITORIAL, probeReport: PROBE
   const bad = partnerErrors(topList);
   if (bad.length) throw new Error(bad.join('\n'));
 }
+// The score of every eligible provider, for the /compare/ tables (static pages and the browser view).
+const scoreMap = Object.fromEntries(rankProviders(providers, { editorial: EDITORIAL, probeReport: PROBE_REPORT, now: new Date(data.generated + 'T12:00:00Z'), minConfirmed: 0 })
+  .map((r) => [r.slug, { total: Math.round(r.total * 10) / 10, confirmed: r.confirmed, of: r.of, rank: topList.find((e) => e.p.slug === r.slug)?.rank ?? null }]));
 // Static /compare/<a>-vs-<b>/ pages (#175): the picks of data/best.json compared pairwise
 // where they share a modality, capped (see lib/compare.mjs). Computed up front
 // so the provider pages can link to the comparisons they appear in.
@@ -1614,6 +1617,7 @@ writeFileSync(
 // current date), because the pages are gitignored and pinned in
 // derived-fingerprints.json.
 writeFileSync(join(ROOT, 'site/shared-compare.js'), compareLib.clientBundle());
+writeFileSync(join(ROOT, 'site/scores.json'), JSON.stringify({ generated: data.generated, scores: scoreMap }, null, 2) + '\n');
 rmSync(join(ROOT, 'site/compare'), { recursive: true, force: true });
 mkdirSync(join(ROOT, 'site/compare'), { recursive: true });
 const compareLinksHtml = (prefix, except = null) => suggestedPairs
@@ -1630,7 +1634,7 @@ for (const cp of comparePairs) {
     `<p class="lede">Both offer ${htmlEsc(cp.shared.join(', '))} on their free plan. Every field below comes from the dataset and is checked against each provider's own docs; <em>not confirmed</em> means nobody has confirmed that field yet — not that the answer is no.</p>` +
     `</div></section>` +
     `<main id="main"><div class="wrap prose">` +
-    compareLib.compareTableHtml([a, b], { prefix: '../../' }) +
+    compareLib.compareTableHtml([a, b], { prefix: '../../', scores: scoreMap }) +
     `<div class="prov-actions" style="margin-top:22px"><a class="btn primary" href="../?compare=${a.slug},${b.slug}">Add a provider to this comparison →</a></div>` +
     `<h2>Other comparisons</h2><nav class="colls">${compareLinksHtml('../../', cp.path)}</nav>` +
     `<p class="prov-back"><a href="../../#explorer">← All providers</a></p>` +
