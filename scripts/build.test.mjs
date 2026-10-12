@@ -1186,7 +1186,7 @@ test('the compare view loads its scripts under the CSP and the null tri-state re
   run(['scripts/build.mjs']);
   const index = readFileSync(join(ROOT, 'site/compare/index.html'), 'utf8');
   assert.match(index, /<script src="\.\.\/shared-compare\.js" defer><\/script>\n<script src="\.\.\/compare\.js" defer><\/script>\n<\/body>/);
-  assert.equal((index.match(/<script>/g) || []).length, 1, 'only the hashed theme guard runs inline');
+  assert.equal(index.split('<script>').length - 1, 1, 'only the hashed theme guard runs inline');
   assert.equal((index.match(/<select class="sel" name="p">/g) || []).length, COMPARE_MAX_SLOTS);
   // ai-horde has commercial_ok: null in the dataset; any page with a null flag
   // must say so instead of rendering it as "no".
@@ -1533,6 +1533,17 @@ import { providerFigures, expandFigures, injectInlineFigures, figureErrors } fro
 
 const walkHtml = (dir) => readdirSync(dir, { withFileTypes: true }).flatMap((e) =>
   e.isDirectory() ? walkHtml(join(dir, e.name)) : e.name.endsWith('.html') ? [join(dir, e.name)] : []);
+// Removes every open..close block with string search. A single regex pass leaves
+// fragments behind on nested or malformed input (CodeQL js/bad-tag-filter), and
+// each removal here shortens the string, so the loop always ends.
+const dropBlocks = (html, open, close) => {
+  let out = html;
+  for (let i = out.indexOf(open); i !== -1; i = out.indexOf(open)) {
+    const j = out.indexOf(close, i + open.length);
+    out = out.slice(0, i) + (j === -1 ? '' : out.slice(j + close.length));
+  }
+  return out;
+};
 const builtPages = () => { run(['scripts/build.mjs']); return walkHtml(join(ROOT, 'site')); };
 
 test('figures: tokens and FIG markers take the number from the data', () => {
@@ -1618,7 +1629,7 @@ test('internal links in the built site resolve to a page (no 404)', () => {
   for (const f of builtPages()) {
     const rel = f.slice(siteDir.length + 1);
     const pagePath = '/' + (rel.endsWith('index.html') ? rel.slice(0, -'index.html'.length) : rel.replace(/\.html$/, ''));
-    const html = readFileSync(f, 'utf8').replace(/<script[\s\S]*?<\/script>/g, '').replace(/<!--[\s\S]*?-->/g, '');
+    const html = dropBlocks(dropBlocks(readFileSync(f, 'utf8'), '<script', '</script>'), '<!--', '-->');
     for (const m of html.matchAll(/<a\b[^>]*\shref="([^"]+)"/g)) {
       const href = m[1];
       if (/^(https?:|mailto:|tel:|javascript:|#|data:)/.test(href)) continue;
