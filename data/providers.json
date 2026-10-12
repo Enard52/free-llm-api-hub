@@ -747,7 +747,7 @@
       "free_type": "renewing-quota",
       "free_tier": "$0 Free plan: starter amount of cloud usage credits, limited to a smaller set of starter models; buying credits unlocks all cloud models",
       "rate_limits": "1 concurrent request on the free plan; included usage resets monthly from signup date (dollar amount of starter credits not published)",
-      "notes": "First-party — Ollama hosts the cloud models. Requires an ollama.com account + API key. The old 5-hour session / weekly limits are gone: usage is now credit-based with a monthly reset; Pro ($20/mo) includes $60 of credits. Prompts/responses are not logged or trained on. Whether a card is required is not stated on the current pricing page.",
+      "notes": "First-party — Ollama hosts the cloud models. Requires an ollama.com account + API key. The old 5-hour session / weekly limits are gone: usage is now credit-based with a monthly reset; Pro ($20/mo) includes $60 of credits. Per its cloud page, Ollama does not use cloud prompts and responses to train models; the page says nothing about logging or retention. Whether a card is required is not stated on the current pricing page.",
       "best_for": "Cloud-hosted open models with the Ollama workflow",
       "modalities": ["text", "vision"],
       "models_free": null,
