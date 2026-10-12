@@ -14,6 +14,7 @@ What is *not* guaranteed: the order of providers in a list, the exact contents o
 ### Fields added within v1
 
 - **`no_expiry`** (dataset 2.10.0): an optional object on one-time trial credits whose provider says the credit does not expire — `source`, `checked`, `quote`. It appears in the provider objects the API serves; consumers that ignore unknown fields are unaffected. `expires` keeps its type and meaning (a window such as `"30 days"`, or `null`).
+- **`data_policy`** (dataset 2.11.0): an optional object with `trains_on_prompts` (boolean or `null`), `retention` (string or `null`), `source` and `checked`. Absent or `null` means nobody has recorded it. It appears in the provider objects the API serves; consumers that ignore unknown fields are unaffected.
 
 ### Generated client configs
 

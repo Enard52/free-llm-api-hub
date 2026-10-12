@@ -169,6 +169,14 @@ for (const p of data.providers ?? []) {
     check(URL_RE.test(p.free_limits.source || ''), `${id}: free_limits.source must be the provider's page (http/https)`);
   }
 
+  // data_policy: what the provider itself says about prompts (see docs/comparison-dimensions.md).
+  if (p.data_policy != null) {
+    const dp = p.data_policy;
+    check(dp.trains_on_prompts != null || dp.retention != null, `${id}: data_policy must state trains_on_prompts or retention (an all-null policy records nothing)`);
+    check(DATE_RE.test(dp.checked || '') && dp.checked <= data.generated, `${id}: data_policy.checked must be a date not after the dataset's generated date`);
+    check(URL_RE.test(dp.source || ''), `${id}: data_policy.source must be the provider's page (http/https)`);
+  }
+
   // no_expiry: the provider's own statement that a one-time trial credit does not expire (see docs/comparison-dimensions.md).
   if (p.no_expiry != null) {
     check(p.free_type === 'trial-credit', `${id}: no_expiry applies only to a one-time trial credit (on a continuous free tier a null expires already means no end)`);

@@ -10,7 +10,7 @@ import { tmpFile } from './lib/tmp.mjs';
 import { join, dirname, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createHash } from 'node:crypto';
-import { ORDER, roundTripError } from './_serialize.mjs';
+import { ORDER, roundTripError, serialize } from './_serialize.mjs';
 import { freshnessBadge, freshnessColor, freshnessStatus, recScore, SLA_DAYS, DUE_SOON_DAYS } from './lib/rules.mjs';
 import { esc, stripTags } from './lib/escape.mjs';
 import { mineProviderHistory, assertHistoryPlausible, historyFromRevisions } from './lib/history.mjs';
@@ -1378,6 +1378,32 @@ test('no_expiry: the validator accepts a sourced statement on a trial credit and
     assert.equal(validateAfter((d) => { trial(d).no_expiry = { ...good, ...bad }; }), false, `rejected: ${JSON.stringify(bad).slice(0, 40)}`);
   }
   assert.equal(validateAfter((d) => { const t = trial(d); t.no_expiry = { ...good }; delete t.no_expiry.quote; }), false, 'the quote is required');
+});
+
+test('data_policy: the validator accepts a sourced statement and rejects the rest', () => {
+  const good = { trains_on_prompts: false, retention: '30 days', source: 'https://example.com/privacy', checked: '2026-10-09' };
+  const one = (d) => d.providers[0];
+  assert.equal(validateAfter((d) => { one(d).data_policy = { ...good }; }), true, 'a sourced statement passes');
+  assert.equal(validateAfter((d) => { one(d).data_policy = { ...good, retention: null }; }), true, 'one stated part is enough');
+  assert.equal(validateAfter((d) => { one(d).data_policy = { ...good, trains_on_prompts: null }; }), true, 'retention alone is enough');
+  assert.equal(validateAfter((d) => { one(d).data_policy = null; }), true, 'null means nobody recorded it');
+  assert.equal(validateAfter((d) => { one(d).data_policy = { ...good, trains_on_prompts: null, retention: null }; }), false, 'an all-null policy records nothing');
+  for (const bad of [{ source: 'javascript:alert(1)' }, { source: '' }, { checked: '2999-01-01' }, { checked: 'yesterday' }, { retention: '' }, { retention: 'x'.repeat(121) }, { trains_on_prompts: 'no' }, { extra: 1 }]) {
+    assert.equal(validateAfter((d) => { one(d).data_policy = { ...good, ...bad }; }), false, `rejected: ${JSON.stringify(bad).slice(0, 40)}`);
+  }
+  assert.equal(validateAfter((d) => { const dp = { ...good }; delete dp.source; one(d).data_policy = dp; }), false, 'the source is required');
+  assert.equal(validateAfter((d) => { const dp = { ...good }; delete dp.checked; one(d).data_policy = dp; }), false, 'the day it was read is required');
+});
+
+test('data_policy: a provider that has it shows the section on its page, and the serializer keeps it', () => {
+  const data = JSON.parse(readFileSync(DATA, 'utf8'));
+  data.providers[0].data_policy = { trains_on_prompts: true, retention: '30 days', source: 'https://example.com/privacy', checked: data.generated };
+  assert.equal(roundTripError(serialize(data)), null, 'the serializer round-trips the field');
+  assert.ok(serialize(data).includes('"data_policy"'), 'the serializer writes it');
+  const html = dataPolicyHtml(data.providers[0]);
+  assert.match(html, /Trains on your prompts<\/dt><dd><span class="tri tri-yes">yes<\/span>/);
+  assert.match(html, /30 days/);
+  assert.match(html, /href="https:\/\/example\.com\/privacy"/);
 });
 
 test('expiry reads the same on the provider page, the comparison and the API', () => {
