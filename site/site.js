@@ -59,4 +59,11 @@
     });
   }
 
+  // --- dated banner: leaves the page after its data-until day (UTC, inclusive) ---
+  var banner = document.getElementById('event-banner');
+  if (banner) {
+    var until = Date.parse((banner.getAttribute('data-until') || '') + 'T23:59:59Z');
+    if (!isNaN(until) && Date.now() > until) banner.remove();
+  }
+
 })();

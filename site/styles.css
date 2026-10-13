@@ -581,3 +581,9 @@ p.muted a, .prose p a, .prov-summary p a { text-decoration: underline; text-unde
    wraps at the edge when it does not fit; ordinary words and numbers still break only at spaces, and the
    code blocks keep their own horizontal scroll. */
 .prov-card p, p.muted { overflow-wrap: anywhere; }
+
+/* Hacktoberfest banner (home). Removed by site.js after its data-until date (UTC, inclusive). */
+.event-banner { background: var(--panel); border-bottom: 1px solid var(--border); border-left: 3px solid var(--warn); }
+.event-banner-inner { padding-block: 10px; }
+.event-banner p { margin: 0; font-size: 0.9rem; line-height: 1.45; }
+.event-banner a { color: var(--accent); text-decoration: underline; text-underline-offset: 2px; }

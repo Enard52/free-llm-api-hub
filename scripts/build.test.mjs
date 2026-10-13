@@ -1895,3 +1895,51 @@ test('/coverage/ says how to propose one value, is in the sitemap with an absolu
   assert.match(readFileSync(join(ROOT, 'site/index.html'), 'utf8'), /<a href="coverage\/">Data coverage<\/a>/, 'the hand-written home footer');
   assert.match(readFileSync(join(ROOT, 'site/p/groq.html'), 'utf8'), /<a href="\.\.\/coverage\/">Data coverage<\/a>/, 'the shared footer of a generated page');
 });
+
+// ---- Hacktoberfest banner on the home (F8) --------------------------------
+// The banner is hand-written in site/index.html and removed by site/site.js
+// once its data-until day (UTC, inclusive) has passed. The build stays
+// deterministic: no clock is read at build time.
+function runSiteJsAt(isoNow) {
+  const src = readFileSync(join(ROOT, 'site/site.js'), 'utf8');
+  let removed = false;
+  const banner = {
+    getAttribute: (k) => (k === 'data-until' ? '2026-10-31' : null),
+    remove: () => { removed = true; },
+  };
+  const fakeDocument = {
+    documentElement: { getAttribute: () => 'dark', setAttribute() {} },
+    getElementById: (id) => (id === 'event-banner' ? banner : null),
+    querySelector: () => null,
+    querySelectorAll: () => [],
+    addEventListener() {},
+  };
+  const RealDate = Date;
+  const now = RealDate.parse(isoNow);
+  class FakeDate extends RealDate {
+    static now() { return now; }
+  }
+  FakeDate.parse = RealDate.parse;
+  new Function('document', 'window', 'localStorage', 'navigator', 'Date', src)(
+    fakeDocument, {}, { getItem: () => null, setItem() {} }, {}, FakeDate,
+  );
+  return removed;
+}
+
+test('home: the Hacktoberfest banner exists, links to /coverage/ and to what gets merged, and has no clock at build time', () => {
+  const index = readFileSync(join(ROOT, 'site/index.html'), 'utf8');
+  assert.equal(index.split('id="event-banner"').length - 1, 1, 'exactly one banner');
+  assert.match(index, /id="event-banner" data-until="2026-10-31"/);
+  const banner = index.slice(index.indexOf('<aside class="event-banner"'), index.indexOf('</aside>'));
+  assert.match(banner, /href="coverage\/"/, 'links to the coverage page');
+  assert.match(banner, /CONTRIBUTING\.md#hacktoberfest/, 'links to the contributing section that says what gets merged and closed');
+  assert.ok(existsSync(join(ROOT, 'site/coverage/index.html')), 'the coverage page it links to exists');
+  assert.doesNotMatch(readFileSync(join(ROOT, 'scripts/build.mjs'), 'utf8'), /event-banner/, 'the build must not read a clock to decide the banner');
+});
+
+test('home: site.js keeps the banner through 31 October (UTC) and removes it from 1 November', () => {
+  assert.equal(runSiteJsAt('2026-10-13T00:00:00Z'), false, 'mid October: banner stays');
+  assert.equal(runSiteJsAt('2026-10-31T23:59:58Z'), false, 'last second of 31 October: banner stays');
+  assert.equal(runSiteJsAt('2026-11-01T00:00:00Z'), true, '1 November: banner is removed');
+  assert.equal(runSiteJsAt('2027-02-01T12:00:00Z'), true, 'later: banner is removed');
+});
