@@ -333,7 +333,7 @@
       "model_tier": null,
       "verified": true,
       "last_verified": "2026-10-08",
-      "data_policy": {"trains_on_prompts":false,"retention":"Zero data retention for open models; Responses API stores 30 days unless store=false","source":"https://fireworks.ai/privacy-policy","checked":"2026-10-13"}
+      "data_policy": {"trains_on_prompts":false,"retention":"Prompt and generation data for open models not logged or stored without opt-in","source":"https://fireworks.ai/privacy-policy","checked":"2026-10-13"}
     },
     {
       "slug": "baseten",
