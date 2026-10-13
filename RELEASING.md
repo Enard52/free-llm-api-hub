@@ -15,8 +15,9 @@ npm package to publish, so a release is a pinned snapshot of the data.
 3. **Source:** only from `main`, with every check green, from the exact commit the tag points to.
 4. **Approval:** publishing a GitHub release is done by the maintainer, after the owner's OK.
    Nothing is published to a package registry.
-5. **Notes:** written from the pull requests merged between the previous tag and this one, one
-   line per pull request, in English. An entry for an outside contributor ends with
+5. **Notes:** written from the pull requests merged between the previous tag and this one, in
+   English. Every pull request that changes something for users is cited by number; related ones
+   may share a line. An entry for an outside contributor ends with
    `Thanks @user`; the contributor is the author of the merged pull request, not the committer
    (in a squash merge the committer is GitHub).
 6. **Attribution:** no AI attribution or AI co-author trailers in the title, the notes or the tags.
