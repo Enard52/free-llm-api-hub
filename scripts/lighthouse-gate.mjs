@@ -32,7 +32,11 @@ const server = createServer((req, res) => {
 
 await new Promise((ok) => server.listen(0, '127.0.0.1', ok));
 const base = `http://127.0.0.1:${server.address().port}`;
-const pages = ['/', '/best/', '/coverage/', '/p/ai21.html'];
+// The provider page comes from the dataset, so removing one provider cannot turn this gate into a 404.
+const providers = JSON.parse(readFileSync(join(ROOT, 'data/providers.json'), 'utf8')).providers;
+const sample = providers.find((p) => existsSync(join(SITE, 'p', `${p.slug}.html`)));
+if (!sample) { console.error('No generated provider page under site/p/: run `node scripts/build.mjs` first.'); process.exit(1); }
+const pages = ['/', '/best/', '/coverage/', `/p/${sample.slug}.html`];
 const lighthouse = join(ROOT, 'tools/lighthouse/node_modules/.bin/lighthouse');
 const RUNS = 3;
 const failures = [];
@@ -56,8 +60,8 @@ try {
     }
     if (reports.length < RUNS) continue;
     const report = medianReport(reports);
-    const all = reports.map((r) => `${r.categories.performance.score}`).join('/');
-    console.log(`${page}: median of ${RUNS} runs: performance ${report.categories.performance.score} (runs ${all}), accessibility ${report.categories.accessibility.score}`);
+    const all = reports.map((r) => r.categories?.performance?.score).join('/');
+    console.log(`${page}: median of ${RUNS} runs: performance ${report.categories.performance?.score} (runs ${all}), accessibility ${report.categories.accessibility?.score}`);
     failures.push(...evaluate(page, report));
   }
 } finally {
