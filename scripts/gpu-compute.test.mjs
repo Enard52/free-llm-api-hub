@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync, existsSync, readdirSync, cpSync, symlinkSync } from 'node:fs';
-import { makeTmpDir } from './lib/tmp.mjs';
+import { readFileSync, existsSync, readdirSync } from 'node:fs';
+import { privateTree } from './lib/private-tree.mjs';
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
@@ -14,21 +14,15 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const providers = JSON.parse(readFileSync(join(ROOT, 'data/providers.json'), 'utf8')).providers;
 const slugs = new Set(providers.map((p) => p.slug));
 
-// The build rewrites site/ (it removes and recreates site/p), and the other test files of the suite run it in
-// parallel processes on the same tree, so two builds can collide on a directory the other is writing (ENOTEMPTY).
-// These tests build in a private copy of the tree (the working tree with its history, node_modules linked), once,
-// and read the generated files from the copy; nothing here touches site/ of the repository.
-let outRoot = null;
-const out = () => {
-  if (outRoot) return outRoot;
-  const dir = makeTmpDir('flah-gpu-');
-  cpSync(ROOT, dir, { recursive: true, filter: (src) => !/(^|\/)node_modules(\/|$)/.test(src) });
-  symlinkSync(join(ROOT, 'node_modules'), join(dir, 'node_modules'));
-  execFileSync(process.execPath, [join(dir, 'scripts/build.mjs')], { cwd: dir, stdio: 'pipe' });
-  outRoot = dir;
-  return outRoot;
+// The builds of this file run in a private copy of the tree (see lib/private-tree.mjs), once, and the generated files
+// are read from the copy; nothing here touches site/ of the repository.
+const out = () => privateTree(ROOT);
+const buildSite = () => {
+  if (built) return;
+  execFileSync(process.execPath, [join(out(), 'scripts/build.mjs')], { cwd: out(), stdio: 'pipe' });
+  built = true;
 };
-const buildSite = () => { out(); };
+let built = false;
 
 const section = () => JSON.parse(readFileSync(join(ROOT, 'data/gpu-compute.json'), 'utf8'));
 const claim = (state, quotes = []) => ({ state, quotes });

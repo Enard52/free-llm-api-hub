@@ -3,6 +3,7 @@
 // is a verified provider with editorial copy. These tests pin that invariant
 // to the data and to the shared checker in lib/best.mjs (#165).
 import { test } from 'node:test';
+import { privateTree } from './lib/private-tree.mjs';
 import assert from 'node:assert/strict';
 import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { tmpFile } from './lib/tmp.mjs';
@@ -11,7 +12,9 @@ import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { bestPickErrors, assertBestPicks, resolveBestEntries } from './lib/best.mjs';
 
-const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
+// The builds of this file run in a private copy of the tree (see lib/private-tree.mjs): `node --test` runs the test
+// files in parallel and two builds on the same tree race on site/p.
+const ROOT = privateTree(join(dirname(fileURLToPath(import.meta.url)), '..'));
 const DATA = join(ROOT, 'data/providers.json');
 
 test('every editorial /best pick is verified and carries why + tag', () => {

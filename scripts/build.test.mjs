@@ -7,6 +7,7 @@ import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
 import { readFileSync, writeFileSync, existsSync, readdirSync, statSync, rmSync } from 'node:fs';
 import { tmpFile } from './lib/tmp.mjs';
+import { privateTree } from './lib/private-tree.mjs';
 import { join, dirname, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createHash } from 'node:crypto';
@@ -24,8 +25,15 @@ import { clientConfigProviders, openaiClients, litellmYaml, MODEL_PLACEHOLDER } 
 import { requirementsHtml, limitsHtml, glanceHtml, modelsHtml, dataPolicyHtml } from './lib/provider-sections.mjs';
 import { compareTableHtml, comparisonCategory, sameComparisonCategory, selectComparePairs, COMPARE_PAGE_CAP, COMPARE_PER_PROVIDER_CAP, COMPARE_MAX as COMPARE_MAX_SLOTS } from './lib/compare.mjs';
 
-const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
+const REPO = join(dirname(fileURLToPath(import.meta.url)), '..');
+// The builds of this file run in a private copy of the tree (see lib/private-tree.mjs): `node --test` runs the test
+// files in parallel and two builds on the same tree race on site/p.
+const ROOT = privateTree(REPO);
 const DATA = join(ROOT, 'data/providers.json');
+// What the build would touch in the tree of the repository, read before any test runs (see the last test).
+const GENERATED_IN_REPO = ['site/p', 'site/sitemap.xml', 'site/api/v1/index.json', 'site/collections'];
+const mtimes = (root) => GENERATED_IN_REPO.map((rel) => (existsSync(join(root, rel)) ? statSync(join(root, rel)).mtimeMs : null));
+const REPO_MTIMES_AT_START = mtimes(REPO);
 const run = (args) => execFileSync(process.execPath, args, { cwd: ROOT, stdio: 'pipe' });
 const exitOk = (args) => {
   try {
@@ -1962,4 +1970,13 @@ test('the no-training collection lists exactly the providers whose data_policy s
   for (const p of providers.filter((q) => q.data_policy && q.data_policy.trains_on_prompts !== false)) {
     assert.ok(!listed.includes(p.slug), `${p.slug} is listed but its policy is not false`);
   }
+});
+
+// The point of the private copy: the builds of this file must not write in the tree of the repository, or they race
+// with the builds of the other test files, which is what failed in CI (ENOTEMPTY on site/p).
+test('the builds of this file leave the generated folders of the repository untouched', () => {
+  assert.notEqual(ROOT, REPO, 'the tests work on a private copy of the tree');
+  run(['scripts/build.mjs']);
+  assert.deepEqual(mtimes(REPO), REPO_MTIMES_AT_START, 'a build in the private copy wrote in the tree of the repository');
+  assert.ok(existsSync(join(ROOT, 'site/p')), 'the build did run, in the copy');
 });
