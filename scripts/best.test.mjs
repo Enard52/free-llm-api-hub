@@ -329,3 +329,16 @@ test('validate rejects a partner without its public note', () => {
   writeFileSync(fixture, JSON.stringify(data));
   assert.throws(() => execFileSync(process.execPath, ['scripts/validate.mjs', fixture], { cwd: ROOT, stdio: 'pipe' }), (e) => /needs a partner_note/.test(String(e.stderr)));
 });
+
+// ---------- the editorial part is declared neutral only while it is ----------
+test('the methodology says the editorial part is neutral exactly while every rating is the default', () => {
+  const { providers } = scoreData();
+  const ed = JSON.parse(readFileSync(join(ROOT, 'data/editorial.json'), 'utf8'));
+  const neutral = providers.every((p) => editorialRating(ed, p.slug) === EDITORIAL_DEFAULT);
+  execFileSync(process.execPath, ['scripts/build.mjs'], { cwd: ROOT, stdio: 'pipe' });
+  const page = readFileSync(join(ROOT, 'site/best/methodology/index.html'), 'utf8');
+  const doc = readFileSync(join(ROOT, 'docs/methodology.md'), 'utf8');
+  assert.equal(/Today the editorial part is neutral/.test(page), neutral, 'the page states it exactly while it is true');
+  assert.equal(/The editorial part is neutral today/.test(doc), neutral, 'the document states it exactly while it is true');
+  if (neutral) assert.match(page, /15 of 30 editorial points/);
+});

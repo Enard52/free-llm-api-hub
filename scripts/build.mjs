@@ -19,7 +19,7 @@ import { flattenFieldChanges, groupChangesByWeek, changesRss, weekTitle, formatV
 import { monthlyReport, reportMonths, monthEndDate } from './lib/state.mjs';
 import { githubProfileUrl } from './lib/contributors.mjs';
 import { resolveBestEntries, topEntries, partnerErrors, PODIUM_SIZE } from './lib/best.mjs';
-import { SCORE_WEIGHTS, EDITORIAL_WEIGHT, EDITORIAL_DEFAULT, MATH_INPUTS, MIN_CONFIRMED, TOP_SIZE, EDITORIAL_NOTE_THRESHOLD, STABILITY_MIN_DAYS, STABILITY_MIN_SAMPLES, rankProviders } from './lib/score.mjs';
+import { SCORE_WEIGHTS, EDITORIAL_WEIGHT, EDITORIAL_DEFAULT, MATH_INPUTS, MIN_CONFIRMED, TOP_SIZE, EDITORIAL_NOTE_THRESHOLD, STABILITY_MIN_DAYS, STABILITY_MIN_SAMPLES, rankProviders, editorialRating } from './lib/score.mjs';
 import { openaiClients, litellmYaml } from './lib/client-config.mjs';
 import * as compareLib from './lib/compare.mjs';
 import { requirementsHtml, limitsHtml, glanceHtml, modelsHtml, dataPolicyHtml } from './lib/provider-sections.mjs';
@@ -1583,6 +1583,8 @@ writeFileSync(
 
 // ---------- /best/methodology/ — the public method of the score ----------
 const WEIGHT_LABELS = { quality: 'Model quality', limits: 'Free limits', friction: 'No card, no phone', commercial: 'Commercial use allowed', openai: 'OpenAI-compatible endpoint', stability: 'Stability' };
+// Computed, never typed: the sentence is printed only while every provider carries the neutral default.
+const editorialNeutral = providers.every((p) => editorialRating(EDITORIAL, p.slug) === EDITORIAL_DEFAULT);
 const methodRows = MATH_INPUTS.map((k) => '<tr><td>' + WEIGHT_LABELS[k] + '</td><td class="num">' + SCORE_WEIGHTS[k] + '</td></tr>').join('') +
   '<tr><td>Editorial rating</td><td class="num">' + EDITORIAL_WEIGHT + '</td></tr>';
 const methodMain =
@@ -1594,6 +1596,7 @@ const methodMain =
   '<h2>The parameters and their weights</h2>' +
   '<table class="best-weights"><thead><tr><th>Part</th><th class="num">Points</th></tr></thead><tbody>' + methodRows + '</tbody></table>' +
   '<p>Seventy points are mathematical, from six inputs in the public dataset. Thirty points are an <strong>editorial rating</strong> per provider, shown in <a href="' + REPO + '/blob/main/data/editorial.json">data/editorial.json</a> with a public note whenever it moves more than ' + EDITORIAL_NOTE_THRESHOLD + ' points from the default of ' + EDITORIAL_DEFAULT + '. <strong>The internal rubric behind those ratings is not published.</strong></p>' +
+  (editorialNeutral ? '<p class="best-neutral"><strong>Today the editorial part is neutral.</strong> Every provider carries the same ' + EDITORIAL_DEFAULT + ' of ' + EDITORIAL_WEIGHT + ' editorial points, so it moves no position: the order is decided by the ' + (100 - EDITORIAL_WEIGHT) + ' measurable points. It stays neutral until a public rubric exists.</p>' : '') +
   '<h2>What the rules guarantee</h2><ul>' +
   '<li><strong>Being a partner scores nothing.</strong> The score never reads the partner flag. A partner can appear only on the podium (ranks 1 to ' + PODIUM_SIZE + '), marked with a visible “Partner” label and a public note; a partner ranked ' + (PODIUM_SIZE + 1) + ' or lower fails the build.</li>' +
   '<li><strong>Missing information is not estimated.</strong> A figure the provider does not publish scores zero, or the middle for the two yes/no requirements. Each provider shows how many of the six inputs are confirmed.</li>' +
