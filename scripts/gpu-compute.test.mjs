@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync, existsSync, readdirSync } from 'node:fs';
+import { readFileSync, existsSync, readdirSync, cpSync, symlinkSync } from 'node:fs';
+import { makeTmpDir } from './lib/tmp.mjs';
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
@@ -12,6 +13,23 @@ import { providerFigures } from './lib/figures.mjs';
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const providers = JSON.parse(readFileSync(join(ROOT, 'data/providers.json'), 'utf8')).providers;
 const slugs = new Set(providers.map((p) => p.slug));
+
+// The build rewrites site/ (it removes and recreates site/p), and the other test files of the suite run it in
+// parallel processes on the same tree, so two builds can collide on a directory the other is writing (ENOTEMPTY).
+// These tests build in a private copy of the tree (the working tree with its history, node_modules linked), once,
+// and read the generated files from the copy; nothing here touches site/ of the repository.
+let outRoot = null;
+const out = () => {
+  if (outRoot) return outRoot;
+  const dir = makeTmpDir('flah-gpu-');
+  cpSync(ROOT, dir, { recursive: true, filter: (src) => !/(^|\/)node_modules(\/|$)/.test(src) });
+  symlinkSync(join(ROOT, 'node_modules'), join(dir, 'node_modules'));
+  execFileSync(process.execPath, [join(dir, 'scripts/build.mjs')], { cwd: dir, stdio: 'pipe' });
+  outRoot = dir;
+  return outRoot;
+};
+const buildSite = () => { out(); };
+
 const section = () => JSON.parse(readFileSync(join(ROOT, 'data/gpu-compute.json'), 'utf8'));
 const claim = (state, quotes = []) => ({ state, quotes });
 const entry = (over = {}) => ({
@@ -31,7 +49,7 @@ test('the section enters no provider count, no slug and no figure', () => {
   // The provider figures come from providers.json alone, so the section is not counted.
   assert.equal(providerFigures(providers).providers, providers.length);
   // The committed outputs that carry the provider count do not list the section's entries as providers.
-  const home = readFileSync(join(ROOT, 'site/index.html'), 'utf8');
+  const home = readFileSync(join(out(), 'site/index.html'), 'utf8');
   for (const e of s.entries) assert.ok(!home.includes(`/p/${e.slug}`), `${e.slug} must not have a provider page link on the home`);
 });
 
@@ -73,8 +91,8 @@ test('fal.ai keeps both of its contradicting expiry sentences and no invented va
 // The page of the section. It reads data/gpu-compute.json only, shows every quoted sentence with the day it
 // was read, says "Not stated" where the provider did not, and stays out of everything that counts providers.
 test('the section has a page that shows its quotations and stays out of every provider count', () => {
-  execFileSync(process.execPath, [join(ROOT, 'scripts/build.mjs')], { cwd: ROOT, stdio: 'pipe' });
-  const page = join(ROOT, 'site/free-gpu/index.html');
+  buildSite();
+  const page = join(out(), 'site/free-gpu/index.html');
   assert.ok(existsSync(page), 'site/free-gpu/index.html is not generated');
   const html = readFileSync(page, 'utf8');
   const s = section();
@@ -93,37 +111,36 @@ test('the section has a page that shows its quotations and stays out of every pr
 
   // Out of every count: no provider page, no entry of the providers API, no collection, no provider-page sitemap line.
   for (const e of s.entries) {
-    assert.ok(!existsSync(join(ROOT, `site/p/${e.slug}.html`)), `${e.slug} got a provider page`);
-    const sitemap = readFileSync(join(ROOT, 'site/sitemap.xml'), 'utf8');
+    assert.ok(!existsSync(join(out(), `site/p/${e.slug}.html`)), `${e.slug} got a provider page`);
+    const sitemap = readFileSync(join(out(), 'site/sitemap.xml'), 'utf8');
     assert.ok(!sitemap.includes(`/p/${e.slug}`), `${e.slug} is in the sitemap as a provider`);
-    for (const f of readdirSync(join(ROOT, 'collections')).filter((x) => x.endsWith('.md'))) {
-      assert.ok(!readFileSync(join(ROOT, 'collections', f), 'utf8').includes(`(p/${e.slug}`), `${e.slug} is in a collection (${f})`);
+    for (const f of readdirSync(join(out(), 'collections')).filter((x) => x.endsWith('.md'))) {
+      assert.ok(!readFileSync(join(out(), 'collections', f), 'utf8').includes(`(p/${e.slug}`), `${e.slug} is in a collection (${f})`);
     }
   }
-  const api = JSON.parse(readFileSync(join(ROOT, 'site/api/v1/index.json'), 'utf8'));
+  const api = JSON.parse(readFileSync(join(out(), 'site/api/v1/index.json'), 'utf8'));
   const count = Array.isArray(api.providers) ? api.providers.length : api.count ?? api.provider_count;
   if (count !== undefined) assert.equal(count, providers.length, 'the providers API counts providers.json only');
-  const sitemap = readFileSync(join(ROOT, 'site/sitemap.xml'), 'utf8');
+  const sitemap = readFileSync(join(out(), 'site/sitemap.xml'), 'utf8');
   assert.ok(sitemap.includes('/free-gpu/'), 'the page is in the sitemap');
   assert.equal([...sitemap.matchAll(/\/p\/[a-z0-9-]+</g)].length, providers.length, 'the sitemap lists one page per provider and nothing else');
 });
 
 test('the page is linked from both footers, the hand-written home and the shared one', () => {
-  const home = readFileSync(join(ROOT, 'site/index.html'), 'utf8');
-  const shared = readFileSync(join(ROOT, 'site/best/index.html'), 'utf8');
+  const home = readFileSync(join(out(), 'site/index.html'), 'utf8');
+  const shared = readFileSync(join(out(), 'site/best/index.html'), 'utf8');
   assert.match(home, /href="free-gpu\/"/);
   assert.match(shared, /href="\.\.\/free-gpu\/"/);
 });
 
 // The section as a file of the stable API (contract v1), with its JSON Schema at a stable address.
-const apiFile = () => JSON.parse(readFileSync(join(ROOT, 'site/api/v1/free-gpu.json'), 'utf8'));
+const apiFile = () => JSON.parse(readFileSync(join(out(), 'site/api/v1/free-gpu.json'), 'utf8'));
 const apiSchema = () => JSON.parse(readFileSync(join(ROOT, 'data/free-gpu.schema.json'), 'utf8'));
 const compileApiSchema = () => {
   const ajv = new Ajv2020({ allErrors: true, strict: true, strictTypes: false, validateFormats: true });
   addFormats(ajv, ['date', 'uri']);
   return ajv.compile(apiSchema());
 };
-const buildSite = () => execFileSync(process.execPath, [join(ROOT, 'scripts/build.mjs')], { cwd: ROOT, stdio: 'pipe' });
 
 test('free-gpu.json carries the data file as it is and validates against its schema; broken copies fail', () => {
   buildSite();
@@ -148,18 +165,18 @@ test('free-gpu.json enters no count of providers, and its schema is published at
   buildSite();
   const file = apiFile();
   assert.ok(file.entries.every((e) => !slugs.has(e.slug)), 'no entry shares a slug with a provider');
-  const all = JSON.parse(readFileSync(join(ROOT, 'site/api/v1/providers.json'), 'utf8'));
+  const all = JSON.parse(readFileSync(join(out(), 'site/api/v1/providers.json'), 'utf8'));
   assert.equal(all.count, providers.length, 'providers.json counts the providers of the dataset only');
   assert.ok(all.providers.every((p) => !file.entries.some((e) => e.slug === p.slug)), 'providers.json lists none of the entries');
-  const apiDir = join(ROOT, 'site/api/v1');
+  const apiDir = join(out(), 'site/api/v1');
   for (const f of readdirSync(apiDir).filter((x) => x.endsWith('.json') && !['free-gpu.json', 'free-gpu.schema.json', 'index.json'].includes(x))) {
     const text = readFileSync(join(apiDir, f), 'utf8');
     for (const e of file.entries) assert.ok(!text.includes(`"slug": "${e.slug}"`), `${f} lists the entry ${e.slug}`);
   }
   assert.equal(file.schema, apiSchema().$id);
   assert.equal(file.schema, 'https://freellmapihub.com/api/v1/free-gpu.schema.json');
-  assert.equal(readFileSync(join(ROOT, 'site/api/v1/free-gpu.schema.json'), 'utf8'), readFileSync(join(ROOT, 'data/free-gpu.schema.json'), 'utf8'), 'the published schema is the source file');
-  const index = JSON.parse(readFileSync(join(ROOT, 'site/api/v1/index.json'), 'utf8'));
+  assert.equal(readFileSync(join(out(), 'site/api/v1/free-gpu.schema.json'), 'utf8'), readFileSync(join(ROOT, 'data/free-gpu.schema.json'), 'utf8'), 'the published schema is the source file');
+  const index = JSON.parse(readFileSync(join(out(), 'site/api/v1/index.json'), 'utf8'));
   assert.equal(index.endpoints['free-gpu'], 'v1/free-gpu.json');
   assert.equal(index.endpoints['free-gpu-schema'], 'v1/free-gpu.schema.json');
 });
