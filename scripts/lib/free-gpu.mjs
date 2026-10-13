@@ -43,10 +43,10 @@ export function freeGpuMainHtml(section, { prefix = '../' } = {}) {
   const notes = (section.notes || []).map((n) =>
     `<section class="gpu-note"><h3>${htmlEsc(n.subject)}</h3><p>${htmlEsc(n.text)}</p>${n.quotes.map(quoteHtml).join('')}</section>`).join('');
   return '<main id="main"><div class="wrap prose">' +
-    '<h2>Where to run a model on free GPU time</h2>' +
+    '<h2>What each service says about free GPU time</h2>' +
     '<p>This is a separate list from the free LLM APIs: these services give you compute, not a hosted model. It is <strong>not part of the ranking</strong> and no count, score or collection of the site includes it. ' +
     'Each value below is written only when the provider\'s own page says it, with the sentence and the day it was read; otherwise it reads <strong>Not stated</strong>, which is not the same as <em>no</em>. ' +
-    'Only services whose own page could be read as plain text are listed. Data of ' + htmlEsc(section.generated) + '.</p>' +
+    'A service is listed only when its own page, read as plain text, says what it offers; pages that need a browser to read are not covered yet. A listed service can still have <strong>Not stated</strong> next to "Free GPU access": the page does not say that its free credit pays for GPU time, and the page then does not claim it. Data of ' + htmlEsc(section.generated) + '.</p>' +
     entries +
     (notes ? '<h2>Worth knowing</h2>' + notes : '') +
     `<p class="muted">Looking for hosted LLM APIs instead? <a href="${prefix}">See the main list</a>. To add or correct a value, open an issue with the provider\'s own page.</p>` +
