@@ -1940,6 +1940,7 @@ test('home: the Hacktoberfest banner exists, links to /coverage/ and to what get
 test('home: site.js keeps the banner through 31 October (UTC) and removes it from 1 November', () => {
   assert.equal(runSiteJsAt('2026-10-13T00:00:00Z'), false, 'mid October: banner stays');
   assert.equal(runSiteJsAt('2026-10-31T23:59:58Z'), false, 'last second of 31 October: banner stays');
+  assert.equal(runSiteJsAt('2026-10-31T23:59:59.999Z'), false, 'last millisecond of 31 October: banner stays');
   assert.equal(runSiteJsAt('2026-11-01T00:00:00Z'), true, '1 November: banner is removed');
   assert.equal(runSiteJsAt('2027-02-01T12:00:00Z'), true, 'later: banner is removed');
 });
