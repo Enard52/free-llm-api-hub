@@ -333,7 +333,7 @@
       "model_tier": null,
       "verified": true,
       "last_verified": "2026-10-08",
-      "data_policy": {"trains_on_prompts":null,"retention":"Zero data retention for open models; Responses API stores 30 days unless store=false","source":"https://docs.fireworks.ai/guides/security_compliance/data_handling","checked":"2026-10-13"}
+      "data_policy": {"trains_on_prompts":false,"retention":"Zero data retention for open models; Responses API stores 30 days unless store=false","source":"https://fireworks.ai/privacy-policy","checked":"2026-10-13"}
     },
     {
       "slug": "baseten",
@@ -405,7 +405,8 @@
       "is_text_llm": true,
       "model_tier": null,
       "verified": true,
-      "last_verified": "2026-10-08"
+      "last_verified": "2026-10-08",
+      "data_policy": {"trains_on_prompts":false,"retention":null,"source":"https://novita.ai/legal/terms-of-service","checked":"2026-10-13"}
     },
     {
       "slug": "ai21",
@@ -500,7 +501,8 @@
       "is_text_llm": false,
       "model_tier": null,
       "verified": true,
-      "last_verified": "2026-10-08"
+      "last_verified": "2026-10-08",
+      "data_policy": {"trains_on_prompts":false,"retention":null,"source":"https://modal.com/legal/terms","checked":"2026-10-13"}
     },
     {
       "slug": "sambanova",
@@ -623,7 +625,8 @@
       "is_text_llm": false,
       "model_tier": null,
       "verified": true,
-      "last_verified": "2026-10-08"
+      "last_verified": "2026-10-08",
+      "data_policy": {"trains_on_prompts":false,"retention":null,"source":"https://jina.ai/embeddings/","checked":"2026-10-13"}
     },
     {
       "slug": "deepgram",
@@ -1036,7 +1039,8 @@
       "is_text_llm": false,
       "model_tier": null,
       "verified": true,
-      "last_verified": "2026-10-08"
+      "last_verified": "2026-10-08",
+      "data_policy": {"trains_on_prompts":false,"retention":null,"source":"https://www.speechmatics.com/terms-and-conditions","checked":"2026-10-13"}
     },
     {
       "slug": "speechify",
@@ -1205,7 +1209,8 @@
       "is_text_llm": false,
       "model_tier": null,
       "verified": true,
-      "last_verified": "2026-10-08"
+      "last_verified": "2026-10-08",
+      "data_policy": {"trains_on_prompts":false,"retention":null,"source":"https://www.rime.ai/terms","checked":"2026-10-13"}
     },
     {
       "slug": "tencent-hunyuan",
@@ -1567,7 +1572,8 @@
       "model_tier": null,
       "verified": true,
       "last_verified": "2026-10-08",
-      "added": "2026-07-31"
+      "added": "2026-07-31",
+      "data_policy": {"trains_on_prompts":false,"retention":null,"source":"https://smallest.ai/terms-of-service","checked":"2026-10-13"}
     },
     {
       "slug": "retell-ai",
