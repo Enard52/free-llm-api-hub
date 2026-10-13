@@ -1980,3 +1980,24 @@ test('the builds of this file leave the generated folders of the repository unto
   assert.deepEqual(mtimes(REPO), REPO_MTIMES_AT_START, 'a build in the private copy wrote in the tree of the repository');
   assert.ok(existsSync(join(ROOT, 'site/p')), 'the build did run, in the copy');
 });
+
+// A worktree made with relative paths has a .git file whose gitdir is relative; the private copy must still see the
+// history, or the build would mine an empty one (the case of the worktrees that agent-start creates).
+test('the private copy of a worktree with a relative gitdir still sees the history', () => {
+  const base = dirname(tmpFile('x'));
+  const git = (cwd, ...args) => execFileSync('git', ['-c', 'user.name=t', '-c', 'user.email=t@example.com', ...args], { cwd, stdio: 'pipe', encoding: 'utf8' });
+  const main = join(base, 'main');
+  git(base, 'init', '-q', main);
+  writeFileSync(join(main, 'f.txt'), 'one\n');
+  git(main, 'add', 'f.txt');
+  git(main, 'commit', '-q', '-m', 'first');
+  const wt = join(base, 'wt');
+  git(main, 'worktree', 'add', '-q', '--detach', wt);
+  // make the gitdir relative, as `git worktree add --relative-paths` does
+  const abs = /^gitdir:\s*(.+?)\s*$/m.exec(readFileSync(join(wt, '.git'), 'utf8'))[1];
+  writeFileSync(join(wt, '.git'), `gitdir: ${relative(wt, abs)}\n`);
+  assert.ok(!/^gitdir: \//.test(readFileSync(join(wt, '.git'), 'utf8')), 'the fixture gitdir is relative');
+  const copy = privateTree(wt);
+  assert.match(readFileSync(join(copy, '.git'), 'utf8'), /^gitdir: \//, 'the copy points at the gitdir by an absolute path');
+  assert.equal(git(copy, 'log', '--format=%s').trim(), 'first', 'the copy sees the history');
+});
