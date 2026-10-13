@@ -342,3 +342,82 @@ test('the methodology says the editorial part is neutral exactly while every rat
   assert.equal(/The editorial part is neutral today/.test(doc), neutral, 'the document states it exactly while it is true');
   if (neutral) assert.match(page, /15 of 30 editorial points/);
 });
+
+// ---------- /api/v1/score.json and its JSON Schema (contract v1) ----------
+import Ajv2020 from 'ajv/dist/2020.js';
+import addFormats from 'ajv-formats';
+
+const scoreApi = () => {
+  execFileSync(process.execPath, ['scripts/build.mjs'], { cwd: ROOT, stdio: 'pipe' });
+  return JSON.parse(readFileSync(join(ROOT, 'site/api/v1/score.json'), 'utf8'));
+};
+const scoreSchema = () => JSON.parse(readFileSync(join(ROOT, 'data/score.schema.json'), 'utf8'));
+const compileScoreSchema = () => {
+  const ajv = new Ajv2020({ allErrors: true, strict: true, strictTypes: false, validateFormats: true });
+  addFormats(ajv, ['date', 'uri']);
+  return ajv.compile(scoreSchema());
+};
+
+test('score.json carries the same numbers as best.json for every pick, and lists no pick best.json does not', () => {
+  const score = scoreApi();
+  const best = JSON.parse(readFileSync(join(ROOT, 'site/api/v1/best.json'), 'utf8'));
+  const bySlug = new Map(score.providers.map((p) => [p.slug, p]));
+  for (const pick of best.picks) {
+    const p = bySlug.get(pick.slug);
+    assert.ok(p, `${pick.slug} is in score.json`);
+    for (const k of ['score', 'math', 'editorial', 'confirmed', 'of']) assert.equal(p[k], pick[k], `${pick.slug}: ${k} matches best.json`);
+    assert.deepEqual(p.parts, pick.parts, `${pick.slug}: parts match best.json`);
+    assert.equal(p.top_rank, pick.rank, `${pick.slug}: top_rank is its rank in best.json`);
+    assert.equal(p.in_top, true);
+  }
+  assert.equal(score.providers.filter((p) => p.in_top).length, best.picks.length, 'exactly the picks of best.json are in the top');
+});
+
+test('score.json validates against its schema, and a deliberately broken copy fails', () => {
+  const score = scoreApi();
+  const validate = compileScoreSchema();
+  assert.equal(validate(score), true, JSON.stringify(validate.errors));
+  const broken = (mutate) => { const c = structuredClone(score); mutate(c); return validate(c); };
+  assert.equal(broken((c) => { delete c.providers[0].score; }), false, 'a provider without its score fails');
+  assert.equal(broken((c) => { delete c.providers[0].parts; }), false, 'a provider without its parts fails');
+  assert.equal(broken((c) => { c.providers[0].top_rank = 0; }), false, 'a top_rank of 0 fails');
+  assert.equal(broken((c) => { c.providers[0].in_top = 'yes'; }), false, 'a non-boolean in_top fails');
+  assert.equal(broken((c) => { c.dataset = 'other'; }), false, 'another dataset name fails');
+  assert.equal(broken((c) => { delete c.weights.editorial; }), false, 'weights without the editorial part fail');
+  assert.equal(broken((c) => { c.providers[0].added_in_a_later_minor = 1; }), true, 'a field added within v1 does not break a v1 reader');
+});
+
+test('score.json lists every eligible provider, best first, and its schema is published at the stable URL', () => {
+  const score = scoreApi();
+  const data = scoreData();
+  const eligible = rankProviders(data.providers, { editorial: JSON.parse(readFileSync(join(ROOT, 'data/editorial.json'), 'utf8')), probeReport: probeData(), now: new Date(data.generated + 'T12:00:00Z'), minConfirmed: 0 });
+  assert.equal(score.count, score.providers.length);
+  assert.equal(score.count, eligible.length, 'every eligible provider is listed');
+  assert.deepEqual(score.providers.map((p) => p.slug), eligible.map((r) => r.slug), 'the order is the ranking order');
+  for (let i = 1; i < score.providers.length; i += 1) assert.ok(score.providers[i - 1].score >= score.providers[i].score, 'best score first');
+  assert.equal(score.schema, scoreSchema().$id, 'the file names its schema');
+  assert.equal(score.schema, 'https://freellmapihub.com/api/v1/score.schema.json');
+  assert.equal(readFileSync(join(ROOT, 'site/api/v1/score.schema.json'), 'utf8'), readFileSync(join(ROOT, 'data/score.schema.json'), 'utf8'), 'the published schema is the source file');
+  const index = JSON.parse(readFileSync(join(ROOT, 'site/api/v1/index.json'), 'utf8'));
+  assert.equal(index.endpoints.score, 'v1/score.json');
+  assert.equal(index.endpoints['score-schema'], 'v1/score.schema.json');
+  assert.equal(score.editorial_neutral, data.providers.every((p) => editorialRating(JSON.parse(readFileSync(join(ROOT, 'data/editorial.json'), 'utf8')), p.slug) === EDITORIAL_DEFAULT));
+});
+
+test('every field of the score schema is mentioned in docs/api.md', () => {
+  const names = new Set();
+  const walk = (o) => {
+    if (Array.isArray(o)) return o.forEach(walk);
+    if (o && typeof o === 'object') {
+      for (const [k, v] of Object.entries(o)) {
+        if (k === 'properties' && v && typeof v === 'object') Object.keys(v).forEach((n) => names.add(n));
+        walk(v);
+      }
+    }
+  };
+  walk(scoreSchema());
+  assert.ok(names.size > 20, 'the walk found the fields');
+  const doc = readFileSync(join(ROOT, 'docs/api.md'), 'utf8');
+  const missing = [...names].filter((n) => !doc.includes('`' + n + '`'));
+  assert.deepEqual(missing, [], 'fields of the schema missing in docs/api.md');
+});

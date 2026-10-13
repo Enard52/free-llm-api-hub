@@ -585,7 +585,8 @@ const topList = topEntries(providers, { editorial: EDITORIAL, probeReport: PROBE
   if (bad.length) throw new Error(bad.join('\n'));
 }
 // The score of every eligible provider, for the /compare/ tables (static pages and the browser view).
-const scoreMap = Object.fromEntries(rankProviders(providers, { editorial: EDITORIAL, probeReport: PROBE_REPORT, now: new Date(data.generated + 'T12:00:00Z'), minConfirmed: 0 })
+const rankedAll = rankProviders(providers, { editorial: EDITORIAL, probeReport: PROBE_REPORT, now: new Date(data.generated + 'T12:00:00Z'), minConfirmed: 0 });
+const scoreMap = Object.fromEntries(rankedAll
   .map((r) => [r.slug, { total: Math.round(r.total * 10) / 10, confirmed: r.confirmed, of: r.of, rank: topList.find((e) => e.p.slug === r.slug)?.rank ?? null }]));
 // Static /compare/<a>-vs-<b>/ pages (#175): the picks of data/best.json compared pairwise
 // where they share a modality, capped (see lib/compare.mjs). Computed up front
@@ -1371,6 +1372,32 @@ const historyPublic = Object.fromEntries(Object.entries(historyBySlug).map(([slu
 writeApi('history.json', { ...apiBase, description: 'Per-provider change history mined from the git log of providers.json.', history: historyPublic });
 writeApi('changes.json', { ...apiBase, description: 'Field-level provider changes (from/to), grouped by ISO week, newest first: the last 12 weeks ending at the newest change. Mined from the git log of providers.json.', weeks: changeWeeks.map(({ week, start, end, count, changes }) => ({ week, start, end, count, changes: changes.map(({ date, slug, name, field, from, to }) => ({ date, slug, name, field, from, to })) })) });
 writeApi('best.json', { ...apiBase, description: 'The top 10 free LLM APIs by the FLLMAPIHUB score, in rank order, with the score and its parts. Never padded to ten. Every pick carries its full verified profile. Method: ' + SITE + '/best/methodology/', updated: data.generated, count: topList.length, picks: topList.map((e) => ({ rank: e.rank, podium: e.podium, score: Math.round(e.total * 10) / 10, math: Math.round(e.math * 10) / 10, editorial: Math.round(e.editorial * 10) / 10, confirmed: e.confirmed, of: e.of, parts: Object.fromEntries(Object.entries(e.parts).map(([k, v]) => [k, Math.round(v * 10) / 10])), tier_near_threshold: e.boundary, ...e.p })) });
+// /api/v1/score.json: the whole score, not only the top 10. Same numbers as best.json (one rounding rule, one source).
+const r1 = (x) => Math.round(x * 10) / 10;
+const SCORE_SCHEMA_URL = SITE + '/api/v1/score.schema.json';
+writeApi('score.json', {
+  ...apiBase,
+  description: 'The FLLMAPIHUB score of every eligible provider (verified and inside the freshness window), best first, with its parts and how many of its inputs the data confirms. Method: ' + SITE + '/best/methodology/',
+  schema: SCORE_SCHEMA_URL,
+  method: SITE + '/best/methodology/',
+  weights: { ...SCORE_WEIGHTS, editorial: EDITORIAL_WEIGHT },
+  editorial_default: EDITORIAL_DEFAULT,
+  editorial_neutral: providers.every((p) => editorialRating(EDITORIAL, p.slug) === EDITORIAL_DEFAULT),
+  min_confirmed: MIN_CONFIRMED,
+  top_size: TOP_SIZE,
+  podium_size: PODIUM_SIZE,
+  count: rankedAll.length,
+  providers: rankedAll.map((r) => {
+    const top = topList.find((e) => e.p.slug === r.slug);
+    return {
+      slug: r.slug, name: r.name, is_text_llm: r.provider.is_text_llm === true,
+      score: r1(r.total), math: r1(r.math), editorial: r1(r.editorial), confirmed: r.confirmed, of: r.of,
+      parts: Object.fromEntries(Object.entries(r.parts).map(([k, v]) => [k, r1(v)])),
+      meets_minimum: r.confirmed >= MIN_CONFIRMED, in_top: !!top, top_rank: top ? top.rank : null, tier_near_threshold: r.boundary,
+    };
+  }),
+});
+writeFileSync(join(ROOT, 'site/api/v1/score.schema.json'), readFileSync(join(ROOT, 'data/score.schema.json')));
 const API_SLICES = {
   ongoing: (p) => p.category === 'ongoing',
   trial: (p) => p.category === 'trial',
@@ -1403,6 +1430,8 @@ const apiEndpoints = {
   history: 'v1/history.json',
   changes: 'v1/changes.json',
   best: 'v1/best.json',
+  score: 'v1/score.json',
+  'score-schema': 'v1/score.schema.json',
   schema: 'v1/schema.json',
   'openai-clients': 'v1/openai-clients.json',
   litellm: 'v1/litellm.yaml',
@@ -1449,6 +1478,8 @@ const apiDocMain =
   apiRow('Full provider dataset (all fields)', 'providers.json', publicProviders.length) +
   apiRow('Apply-to-get credit programs', 'programs.json', programs.startups.length + programs.research.length) +
   apiRow('The top 10 by score, ranked with its parts', 'best.json', topList.length) +
+  apiRow('The score of every eligible provider, with its parts', 'score.json', rankedAll.length) +
+  apiRow('JSON Schema of score.json (contract v1)', 'score.schema.json', null) +
   apiRow('Field-level provider changes by ISO week (last 12 weeks)', 'changes.json', null) +
   apiRow('Endpoint manifest', 'index.json', null) +
   apiRow('JSON Schema of the dataset (copy of data/schema.json)', 'schema.json', null) +
