@@ -587,3 +587,16 @@ p.muted a, .prose p a, .prov-summary p a { text-decoration: underline; text-unde
 .event-banner-inner { padding-block: 10px; }
 .event-banner p { margin: 0; font-size: 0.9rem; line-height: 1.45; }
 .event-banner a { color: var(--accent); text-decoration: underline; text-underline-offset: 2px; }
+
+/* Free GPU compute page */
+.gpu-entry, .gpu-note { margin: 0 0 24px; }
+.gpu-claims { margin: 0; }
+.gpu-claim { display: grid; grid-template-columns: 11rem 1fr; gap: 6px 16px; padding: 10px 0; border-bottom: 1px solid var(--border); }
+.gpu-claim dt { color: var(--muted); font-size: .86rem; font-weight: 600; }
+.gpu-claim dd { margin: 0; }
+.gpu-unstated { color: var(--muted); }
+.gpu-quote { margin: 8px 0 0; padding: 4px 0 4px 12px; border-left: 3px solid var(--border); }
+.gpu-quote p { margin: 0 0 4px; }
+/* A link inside a block of text must not rely on colour alone. */
+.gpu-quote a, .gpu-entry h3 a, .gpu-note h3 a { text-decoration: underline; }
+@media (max-width: 640px) { .gpu-claim { grid-template-columns: 1fr; } }

@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync, existsSync } from 'node:fs';
+import { readFileSync, existsSync, readdirSync } from 'node:fs';
+import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { gpuComputeErrors, CLAIM_FIELDS } from './lib/gpu-compute.mjs';
@@ -65,4 +66,49 @@ test('fal.ai keeps both of its contradicting expiry sentences and no invented va
   assert.match(texts, /expire in 90 days/);
   assert.match(texts, /ranging from 1 week to 1 year/);
   for (const f of ['credit_amount', 'card_required']) assert.equal(fal.claims[f].state, 'not_stated');
+});
+
+// The page of the section. It reads data/gpu-compute.json only, shows every quoted sentence with the day it
+// was read, says "Not stated" where the provider did not, and stays out of everything that counts providers.
+test('the section has a page that shows its quotations and stays out of every provider count', () => {
+  execFileSync(process.execPath, [join(ROOT, 'scripts/build.mjs')], { cwd: ROOT, stdio: 'pipe' });
+  const page = join(ROOT, 'site/free-gpu/index.html');
+  assert.ok(existsSync(page), 'site/free-gpu/index.html is not generated');
+  const html = readFileSync(page, 'utf8');
+  const s = section();
+  const esc = (t) => t.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+  for (const e of s.entries) {
+    assert.ok(html.includes(esc(e.name)), `${e.name} is missing from the page`);
+    for (const c of Object.values(e.claims)) {
+      for (const q of c.quotes) {
+        assert.ok(html.includes(esc(q.text)), `a quotation of ${e.name} is missing from the page`);
+        assert.ok(html.includes(`read ${q.read}`), `the read date of a quotation of ${e.name} is missing`);
+      }
+    }
+  }
+  assert.match(html, /Not stated/, 'a value the provider did not state must read Not stated');
+  assert.match(html, /not part of the ranking/, 'the page must say it is apart from the ranking');
+
+  // Out of every count: no provider page, no entry of the providers API, no collection, no provider-page sitemap line.
+  for (const e of s.entries) {
+    assert.ok(!existsSync(join(ROOT, `site/p/${e.slug}.html`)), `${e.slug} got a provider page`);
+    const sitemap = readFileSync(join(ROOT, 'site/sitemap.xml'), 'utf8');
+    assert.ok(!sitemap.includes(`/p/${e.slug}`), `${e.slug} is in the sitemap as a provider`);
+    for (const f of readdirSync(join(ROOT, 'collections')).filter((x) => x.endsWith('.md'))) {
+      assert.ok(!readFileSync(join(ROOT, 'collections', f), 'utf8').includes(`(p/${e.slug}`), `${e.slug} is in a collection (${f})`);
+    }
+  }
+  const api = JSON.parse(readFileSync(join(ROOT, 'site/api/v1/index.json'), 'utf8'));
+  const count = Array.isArray(api.providers) ? api.providers.length : api.count ?? api.provider_count;
+  if (count !== undefined) assert.equal(count, providers.length, 'the providers API counts providers.json only');
+  const sitemap = readFileSync(join(ROOT, 'site/sitemap.xml'), 'utf8');
+  assert.ok(sitemap.includes('/free-gpu/'), 'the page is in the sitemap');
+  assert.equal([...sitemap.matchAll(/\/p\/[a-z0-9-]+</g)].length, providers.length, 'the sitemap lists one page per provider and nothing else');
+});
+
+test('the page is linked from both footers, the hand-written home and the shared one', () => {
+  const home = readFileSync(join(ROOT, 'site/index.html'), 'utf8');
+  const shared = readFileSync(join(ROOT, 'site/best/index.html'), 'utf8');
+  assert.match(home, /href="free-gpu\/"/);
+  assert.match(shared, /href="\.\.\/free-gpu\/"/);
 });

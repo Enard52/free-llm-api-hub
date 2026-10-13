@@ -20,6 +20,7 @@ import { monthlyReport, reportMonths, monthEndDate } from './lib/state.mjs';
 import { githubProfileUrl } from './lib/contributors.mjs';
 import { resolveBestEntries, topEntries, partnerErrors, PODIUM_SIZE } from './lib/best.mjs';
 import { coverage, coverageMainHtml } from './lib/coverage.mjs';
+import { freeGpuMainHtml } from './lib/free-gpu.mjs';
 import { SCORE_WEIGHTS, EDITORIAL_WEIGHT, EDITORIAL_DEFAULT, MATH_INPUTS, MIN_CONFIRMED, TOP_SIZE, EDITORIAL_NOTE_THRESHOLD, STABILITY_MIN_DAYS, STABILITY_MIN_SAMPLES, rankProviders, editorialRating } from './lib/score.mjs';
 import { openaiClients, litellmYaml } from './lib/client-config.mjs';
 import * as compareLib from './lib/compare.mjs';
@@ -431,7 +432,7 @@ const siteFooter = (p) => `<footer class="site-footer"><div class="wrap footer-t
 <div class="footer-brand"><a class="foot-brand-link" href="${p}" aria-label="Free LLM API Hub — home"><svg class="logo-mark"><use href="#logo"/></svg><span class="brand-name">Free LLM API <span class="grad">Hub</span></span></a><p>The <strong>continuously-verified</strong>, <strong>machine-readable</strong> dataset of <strong>free LLM &amp; AI-model APIs</strong> and <strong>trial credits</strong> — every entry <strong>dated</strong>, <strong>sourced</strong>, and <strong>free of dead links</strong>.</p><img class="trust-badge" src="https://img.shields.io/endpoint?url=https://freellmapihub.com/badge-verified.json" alt="Verified providers" height="20" loading="lazy"><a class="star-btn" href="${REPO}" target="_blank" rel="noopener"><span class="sb-label">${GH_ICON} Star on GitHub</span><span class="sb-count" data-stars>★</span></a></div>
 <div class="footer-col"><h2 class="footer-h">Explore</h2><a href="${p}#explorer">Interactive explorer</a><a href="${p}models/">Free model index</a><a href="${p}guides-and-collections/">Guides &amp; collections</a><a href="${p}programs/startups">Startup credits</a><a href="${p}programs/research">Student &amp; research credits</a></div>
 <div class="footer-col"><h2 class="footer-h">Data</h2><a href="${p}providers.json">providers.json</a><a href="${p}api/">JSON API</a><a href="${p}llms.txt">llms.txt</a></div>
-<div class="footer-col"><h2 class="footer-h">Project</h2><a href="${p}updates">Updates</a><a href="${p}changes/">What changed</a><a href="${p}state/">Monthly state report</a><a href="${p}coverage/">Data coverage</a><a href="${REPO}/blob/main/docs/methodology.md">Methodology</a><a href="${REPO}/blob/main/CONTRIBUTING.md">Contributing</a><a href="${REPO}">GitHub ★</a></div>
+<div class="footer-col"><h2 class="footer-h">Project</h2><a href="${p}updates">Updates</a><a href="${p}changes/">What changed</a><a href="${p}state/">Monthly state report</a><a href="${p}coverage/">Data coverage</a><a href="${p}free-gpu/">Free GPU compute</a><a href="${REPO}/blob/main/docs/methodology.md">Methodology</a><a href="${REPO}/blob/main/CONTRIBUTING.md">Contributing</a><a href="${REPO}">GitHub ★</a></div>
 </div><div class="wrap footer-bottom"><p>Independent, community-maintained — not affiliated with any provider listed. Terms change without notice; always confirm against each provider's own docs. MIT licensed.</p><p class="foot-legal"><a href="${p}legal/privacy">Privacy</a> · <a href="${p}legal/terms">Terms</a></p><p class="foot-email"><a href="mailto:admin@freellmapihub.com">admin@freellmapihub.com</a></p></div></footer>`;
 
 // Full page wrapper for generated (collection) pages. `p` is the path prefix to the site root.
@@ -1648,6 +1649,24 @@ writeFileSync(
   })
 );
 
+// ---------- /free-gpu/ — the Free GPU compute section, apart from the ranking ----------
+// Reads data/gpu-compute.json only; nothing here enters a provider count, score or collection.
+const freeGpu = JSON.parse(readFileSync(join(ROOT, 'data/gpu-compute.json'), 'utf8'));
+mkdirSync(join(ROOT, 'site/free-gpu'), { recursive: true });
+writeFileSync(
+  join(ROOT, 'site/free-gpu/index.html'),
+  htmlPage({
+    title: 'Free GPU compute · Free LLM API Hub',
+    desc: 'Services that give free GPU time to run your own model, each value with the provider\'s own sentence and the day it was read. A separate list from the ranking of free LLM APIs.',
+    canonical: SITE + '/free-gpu/',
+    main:
+      '<section class="page-hero model-hero"><div class="wrap"><nav class="crumbs"><a href="../">Home</a> / Free GPU compute</nav>' +
+      '<h1>Free GPU compute</h1><p class="lede">Free GPU time to run a model yourself. Apart from the ranking, and every value cited to the provider\'s own page.</p></div></section>' +
+      freeGpuMainHtml(freeGpu, { prefix: '../' }),
+    prefix: '../',
+  })
+);
+
 // ---------- /compare — provider compare view (#175) ----------
 // The interactive view (/compare/?compare=a,b — 2 to 4 slugs) and a small,
 // deterministic set of static pages (/compare/<a>-vs-<b>/). Both render the
@@ -1738,6 +1757,7 @@ const sitemapEntries = [
   [`${SITE}/best/`, data.generated],
   [`${SITE}/best/methodology/`, data.generated],
   [`${SITE}/coverage/`, data.generated],
+  [`${SITE}/free-gpu/`, freeGpu.generated],
   [`${SITE}/api/`, data.generated],
   [`${SITE}/changes/`, data.generated],
   [`${SITE}/state/`, data.generated],
