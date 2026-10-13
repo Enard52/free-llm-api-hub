@@ -187,12 +187,12 @@ const COLLECTIONS = [
     slug: 'no-training',
     title: 'Free LLM APIs that say they do not train on your prompts',
     h1: 'Free LLM APIs that say they do not train on your prompts',
-    desc: 'Free LLM and AI APIs whose own terms or privacy page say they do not use your prompts to train their models — each with a link to the page it rests on. A live slice of a verified dataset.',
+    desc: 'Free LLM and AI APIs whose own terms or privacy page say they do not use your prompts to train their models; each provider’s page on this site cites the source and the day it was read. A live slice of a verified dataset.',
     intro: 'Providers whose **own page says they do not train on your prompts** (`data_policy.trains_on_prompts: false`). Each provider’s own page on this site shows the page its policy rests on (a link, with the day it was read). Read the conditions: some say it only holds unless you opt in, or in a privacy notice rather than a contract. Providers that do not state it are not listed, which never means they train.',
     filter: (p) => p.data_policy?.trains_on_prompts === false,
     faq: [
-      { q: 'Which free LLM APIs say they do not train on my prompts?', a: 'The providers on this page, each according to its own terms or privacy page, linked on its row. The wording differs: for some it holds only while you have not opted in to training, and a privacy notice is not a contract.' },
-      { q: 'Does a provider missing from this list train on my data?', a: 'Not necessarily. It means no sentence on its own page that says otherwise could be cited, or the page could not be read. Check the provider before you send sensitive data.' },
+      { q: 'Which free LLM APIs say they do not train on my prompts?', a: 'The providers on this page, each according to its own terms or privacy page, cited with the day it was read on the provider’s page on this site. The wording differs: for some it holds only while you have not opted in to training, and a privacy notice is not a contract.' },
+      { q: 'Does a provider missing from this list train on my data?', a: 'Not necessarily. A provider is missing when its own page says it may train on prompts, says nothing we could cite, or could not be read. Check the provider before you send sensitive data.' },
     ],
   },
 ];

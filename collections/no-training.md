@@ -2,7 +2,7 @@
 
 # Free LLM APIs that say they do not train on your prompts
 
-Free LLM and AI APIs whose own terms or privacy page say they do not use your prompts to train their models — each with a link to the page it rests on. A live slice of a verified dataset.
+Free LLM and AI APIs whose own terms or privacy page say they do not use your prompts to train their models; each provider’s page on this site cites the source and the day it was read. A live slice of a verified dataset.
 
 [← All collections](README.md) · [Interactive explorer ↗](https://freellmapihub.com/) · [Main list](../README.md)
 
