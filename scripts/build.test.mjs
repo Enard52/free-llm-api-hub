@@ -1803,3 +1803,95 @@ test('the /compare/ tables show the score and the model quality tier, in the sta
   assert.doesNotMatch(compareTableHtml([p, p]), /Model quality tier/);
   assert.match(compareTableHtml([p, p], { scores: { [p.slug]: { total: 51.25, confirmed: 4, of: 6, rank: 2 } } }), /<strong>51\.3<\/strong> \/ 100[\s\S]*4 of 6 inputs confirmed · <a href="best\/">#2 in the top 10<\/a>/);
 });
+
+// ---------- /coverage/ — the data-coverage task board ----------
+import { coverageMainHtml, coverage as coverageOf } from './lib/coverage.mjs';
+
+// A separate path from lib/coverage.mjs on purpose: plain loops and the populations as the card words them.
+const coverageByHand = (providers) => {
+  const out = {};
+  const add = (key, inPop, has) => {
+    let total = 0; let confirmed = 0;
+    for (const p of providers) {
+      if (!inPop(p)) continue;
+      total += 1;
+      if (has(p)) confirmed += 1;
+    }
+    out[key] = { total, confirmed, open: total - confirmed };
+  };
+  const verified = (p) => p.verified === true;
+  const verifiedText = (p) => p.verified === true && p.is_text_llm === true;
+  const verifiedTextNotTrial = (p) => verifiedText(p) && p.free_type !== 'trial-credit';
+  add('card_required', verified, (p) => p.card_required === true || p.card_required === false);
+  add('phone_required', verified, (p) => p.phone_required === true || p.phone_required === false);
+  add('commercial_ok', verified, (p) => p.commercial_ok === true || p.commercial_ok === false);
+  add('openai_compatible', verified, (p) => p.openai_compatible === true || p.openai_compatible === false);
+  add('model_tier', verifiedTextNotTrial, (p) => typeof p.model_tier === 'number');
+  add('free_limits', verifiedTextNotTrial, (p) => p.free_limits !== null && p.free_limits !== undefined);
+  add('models_free', verifiedText, (p) => Array.isArray(p.models_free) && p.models_free.length > 0);
+  add('data_policy', verifiedText, (p) => p.data_policy !== null && p.data_policy !== undefined);
+  return out;
+};
+
+test('/coverage/ shows, for every field, counts that match a separate recount from the data', () => {
+  run(['scripts/build.mjs']);
+  const { providers } = JSON.parse(readFileSync(DATA, 'utf8'));
+  const html = readFileSync(join(ROOT, 'site/coverage/index.html'), 'utf8');
+  const expected = coverageByHand(providers);
+  const labels = {
+    card_required: 'Credit card required?', phone_required: 'Phone verification required?', commercial_ok: 'Commercial use allowed?',
+    openai_compatible: 'OpenAI-compatible endpoint?', model_tier: 'Model quality tier', free_limits: 'Published free limits',
+    models_free: 'Free model sample', data_policy: 'Data policy',
+  };
+  for (const [key, e] of Object.entries(expected)) {
+    const m = html.match(new RegExp('<span class="cov-label">' + labels[key].replace(/[?]/g, '\\?') + '[^<]*</span>[\\s\\S]*?<td class="num">(\\d+) of (\\d+)</td><td class="num">(\\d+)%</td><td class="num">(\\d+)</td>'));
+    assert.ok(m, `${key}: its row is on the page`);
+    assert.deepEqual([+m[1], +m[2], +m[4]], [e.confirmed, e.total, e.open], `${key}: confirmed, total and open match the recount`);
+    assert.equal(+m[3], e.total ? Math.round((100 * e.confirmed) / e.total) : 0, `${key}: the share is the rounded percentage`);
+  }
+  assert.match(html, /verified text LLMs that are not one-time trial credits/, 'the population of model_tier and free_limits is stated');
+  assert.match(html, /all verified providers/);
+});
+
+test('/coverage/ has one task row per open gap, each with the official docs and a prefilled issue', () => {
+  const { providers } = JSON.parse(readFileSync(DATA, 'utf8'));
+  const html = readFileSync(join(ROOT, 'site/coverage/index.html'), 'utf8');
+  const gaps = Object.values(coverageByHand(providers)).reduce((n, e) => n + e.open, 0);
+  const rows = html.match(/<li class="cov-task">[\s\S]*?<\/li>/g) || [];
+  assert.equal(rows.length, gaps, 'the number of task rows is the sum of the gaps');
+  const docs = new Map(providers.map((p) => [p.name, p.docs_url]));
+  for (const row of rows) {
+    assert.match(row, /href="\.\.\/p\/[a-z0-9-]+"/, 'the provider links to its page');
+    assert.match(row, /https:\/\/github\.com\/pacocartones\/free-llm-api-hub\/issues\/new\?template=inaccuracy\.yml&amp;provider=[a-z0-9-]+&amp;title=/, 'a prefilled issue of the existing template');
+    const name = row.match(/<a href="\.\.\/p\/[^"]+">([^<]*)<\/a>/)[1].replace(/&amp;/g, '&');
+    const url = docs.get(name);
+    assert.ok(url && row.includes(`href="${url.replace(/&/g, '&amp;')}"`), `${name}: the row links the provider's own docs_url`);
+  }
+  // an unknown value reads "not confirmed", never "no": every open group says so, and no task row states a value
+  const summaries = html.match(/<summary>[\s\S]*?<\/summary>/g) || [];
+  assert.ok(summaries.length >= 1, 'there are open groups');
+  assert.ok(summaries.every((x) => /not confirmed/.test(x)), 'every open group says not confirmed');
+  assert.ok(rows.every((r) => !/\b(yes|no)\b/i.test(r.replace(/<a href="\.\.\/p\/[^"]*">[^<]*<\/a>/, '').replace(/<[^>]+>/g, ' ').replace(/official docs|propose the value/g, ''))), 'a task row never states a value, only that it is open');
+});
+
+test('/coverage/ escapes hostile provider text and refuses a non-http docs link', () => {
+  const evil = { slug: 'evil', name: '<img src=x onerror=alert(1)>', docs_url: 'javascript:alert(1)', verified: true, is_text_llm: true, free_type: 'perpetual', card_required: null };
+  const rows = [{ key: 'card_required', label: 'Credit card required?', population: 'all verified providers', total: 1, confirmed: 0, open: [evil] }];
+  const out = coverageMainHtml(rows, { repo: 'https://github.com/o/r', generated: '2026-10-13', prefix: '../' });
+  assert.ok(!out.includes('<img'), 'the name cannot open a tag');
+  assert.ok(out.includes('&lt;img src=x onerror=alert(1)&gt;'));
+  assert.ok(!/href="javascript:/i.test(out), 'a javascript: docs link is never an href');
+  assert.match(out, /no official docs link/);
+  assert.equal(coverageOf([{ ...evil, verified: false }]).every((r) => r.total === 0), true, 'an unverified provider counts in no population');
+});
+
+test('/coverage/ says how to propose one value, is in the sitemap with an absolute canonical and is linked from both footers', () => {
+  run(['scripts/build.mjs']);
+  const html = readFileSync(join(ROOT, 'site/coverage/index.html'), 'utf8');
+  assert.match(html, /one value with its source/);
+  assert.match(html, /CONTRIBUTING\.md/);
+  assert.match(html, /<link rel="canonical" href="https:\/\/freellmapihub\.com\/coverage\/">/);
+  assert.match(readFileSync(join(ROOT, 'site/sitemap.xml'), 'utf8'), /<loc>https:\/\/freellmapihub\.com\/coverage\/<\/loc>/);
+  assert.match(readFileSync(join(ROOT, 'site/index.html'), 'utf8'), /<a href="coverage\/">Data coverage<\/a>/, 'the hand-written home footer');
+  assert.match(readFileSync(join(ROOT, 'site/p/groq.html'), 'utf8'), /<a href="\.\.\/coverage\/">Data coverage<\/a>/, 'the shared footer of a generated page');
+});

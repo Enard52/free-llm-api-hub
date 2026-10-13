@@ -348,6 +348,21 @@ pre:hover .pre-copy, .pre-copy:focus-visible { opacity: 1; }
 .best-weights .num { text-align: right; font-family: var(--font-mono); padding-right: 0; }
 .best-method { max-width: 46rem; line-height: 1.65; }
 .best-method li { margin-bottom: 8px; }
+/* /coverage/ — the data-coverage task board */
+.cov-table { border-collapse: collapse; width: 100%; margin: 0 0 14px; font-size: .92rem; }
+.cov-table th, .cov-table td { text-align: left; padding: 8px 14px 8px 0; border-bottom: 1px solid var(--border); vertical-align: top; }
+.cov-table thead th { color: var(--muted); font-weight: 600; font-size: .78rem; text-transform: uppercase; letter-spacing: .04em; }
+.cov-table .num { text-align: right; font-family: var(--font-mono); white-space: nowrap; padding-right: 0; padding-left: 10px; }
+.cov-field { border: 1px solid var(--border); border-radius: var(--radius); padding: 10px 14px; margin: 0 0 10px; background: var(--panel); }
+.cov-field summary { cursor: pointer; }
+.cov-list { list-style: none; margin: 10px 0 2px; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.cov-task { line-height: 1.5; overflow-wrap: anywhere; }
+.cov-pop { display: none; }
+@media (max-width: 640px) {
+  .cov-popcol { display: none; }
+  .cov-pop { display: block; font-weight: 400; font-size: .82rem; color: var(--muted); margin-top: 2px; }
+  .cov-table th, .cov-table td { padding-right: 8px; }
+}
 @media (max-width: 480px) {
   .best-item { grid-template-columns: 2.4rem 1fr; gap: 10px; padding: 14px; }
   .best-rank { font-size: 1.3rem; }
