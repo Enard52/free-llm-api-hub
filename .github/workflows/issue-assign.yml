@@ -1,8 +1,9 @@
 name: Issue assignment
 
 # "/take" in an issue comment assigns the commenter, "/release" unassigns them.
-# Issues labelled "no claim needed" are not assigned: the first correct pull
-# request wins. Runs on comments only; no code from the repository is checked out.
+# Issues labelled both "good first issue" and "data" are not assigned: the first
+# correct pull request wins. Runs on comments only; no code from the repository
+# is checked out.
 on:
   issue_comment:
     types: [created]
@@ -34,7 +35,7 @@ jobs:
           say() { gh issue comment "$ISSUE" --repo "$REPO" --body "$1" >/dev/null; }
           case $cmd in
             /take)
-              if jq -e 'index("no claim needed")' <<<"$LABELS" >/dev/null; then
+              if jq -e 'index("good first issue") and index("data")' <<<"$LABELS" >/dev/null; then
                 say "@$AUTHOR no need to claim this one: open a pull request when it's ready. The first correct, sourced PR is merged."
               elif jq -e --arg a "$AUTHOR" 'index($a)' <<<"$ASSIGNEES" >/dev/null; then
                 exit 0
