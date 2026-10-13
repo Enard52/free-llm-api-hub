@@ -1387,6 +1387,21 @@ writeApi('score.json', {
   }),
 });
 writeFileSync(join(ROOT, 'site/api/v1/score.schema.json'), readFileSync(join(ROOT, 'data/score.schema.json')));
+// /api/v1/free-gpu.json: the Free GPU compute section, apart from the provider ranking. It is the data file
+// as it is (data/gpu-compute.json), with its contract v1 and a JSON Schema at a stable URL; it carries no count of
+// providers and nothing here is read by any other file of the API.
+const freeGpu = JSON.parse(readFileSync(join(ROOT, 'data/gpu-compute.json'), 'utf8'));
+const FREE_GPU_SCHEMA_URL = SITE + '/api/v1/free-gpu.schema.json';
+writeApi('free-gpu.json', {
+  ...apiBase,
+  description: 'Services that give free GPU time, apart from the provider ranking: each value with the sentence it rests on and the day it was read; a value the provider did not state reads not_stated. Page: ' + SITE + '/free-gpu/',
+  schema: FREE_GPU_SCHEMA_URL,
+  page: SITE + '/free-gpu/',
+  count: freeGpu.entries.length,
+  entries: freeGpu.entries,
+  notes: freeGpu.notes || [],
+});
+writeFileSync(join(ROOT, 'site/api/v1/free-gpu.schema.json'), readFileSync(join(ROOT, 'data/free-gpu.schema.json')));
 const API_SLICES = {
   ongoing: (p) => p.category === 'ongoing',
   trial: (p) => p.category === 'trial',
@@ -1421,6 +1436,8 @@ const apiEndpoints = {
   best: 'v1/best.json',
   score: 'v1/score.json',
   'score-schema': 'v1/score.schema.json',
+  'free-gpu': 'v1/free-gpu.json',
+  'free-gpu-schema': 'v1/free-gpu.schema.json',
   schema: 'v1/schema.json',
   'openai-clients': 'v1/openai-clients.json',
   litellm: 'v1/litellm.yaml',
@@ -1469,6 +1486,8 @@ const apiDocMain =
   apiRow('The top 10 by score, ranked with its parts', 'best.json', topList.length) +
   apiRow('The score of every eligible provider, with its parts', 'score.json', rankedAll.length) +
   apiRow('JSON Schema of score.json (contract v1)', 'score.schema.json', null) +
+  apiRow('Free GPU compute, apart from the ranking (not a count of providers)', 'free-gpu.json', freeGpu.entries.length) +
+  apiRow('JSON Schema of free-gpu.json (contract v1)', 'free-gpu.schema.json', null) +
   apiRow('Field-level provider changes by ISO week (last 12 weeks)', 'changes.json', null) +
   apiRow('Endpoint manifest', 'index.json', null) +
   apiRow('JSON Schema of the dataset (copy of data/schema.json)', 'schema.json', null) +
@@ -1651,7 +1670,6 @@ writeFileSync(
 
 // ---------- /free-gpu/ — the Free GPU compute section, apart from the ranking ----------
 // Reads data/gpu-compute.json only; nothing here enters a provider count, score or collection.
-const freeGpu = JSON.parse(readFileSync(join(ROOT, 'data/gpu-compute.json'), 'utf8'));
 mkdirSync(join(ROOT, 'site/free-gpu'), { recursive: true });
 writeFileSync(
   join(ROOT, 'site/free-gpu/index.html'),

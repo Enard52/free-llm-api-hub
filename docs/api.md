@@ -69,6 +69,32 @@ A provider with few confirmed inputs still appears, with a low `confirmed`: miss
 
 (abridged: the real file carries every field of the tables above.)
 
+### Free GPU compute: `/api/v1/free-gpu.json`
+
+[`/api/v1/free-gpu.json`](https://freellmapihub.com/api/v1/free-gpu.json) is the [Free GPU compute](https://freellmapihub.com/free-gpu/) section as data: services that give free GPU time, **apart from the provider ranking**. It is not a list of providers and it carries no count of providers: nothing in it enters `providers.json`, a slice, a collection or the score. Each value rests on a sentence from the service's own page and the day it was read; a value the page did not state is `not_stated` and is never filled in.
+
+Its contract is **v1** and is described by a JSON Schema at a stable URL, [`/api/v1/free-gpu.schema.json`](https://freellmapihub.com/api/v1/free-gpu.schema.json) (the source is [`data/free-gpu.schema.json`](../data/free-gpu.schema.json)). The file names it in `schema`. The rules above apply: a field named below is never renamed, removed or retyped within v1, new fields may be added, so read only the fields you need and ignore the rest.
+
+| Field | Type | Meaning |
+|---|---|---|
+| `schema` | URL | the schema of this file |
+| `page` | URL | the public page that shows the same section |
+| `count` | integer | the number of `entries`; not a count of providers |
+| `entries` | array | the services, in the order of the data file |
+| `notes` | array | services worth knowing about that are not entries, such as a free trial that does not allow GPUs |
+
+Each entry has:
+
+| Field | Type | Meaning |
+|---|---|---|
+| `slug` | string | the identifier; never the slug of a provider of the dataset |
+| `name` | string | the display name |
+| `url` | URL | the service's own page |
+| `kind` | string | `notebook` or `serverless-api` |
+| `claims` | object | `gpu_access`, `quota`, `credit_amount`, `expires` and `card_required`, each a claim |
+
+A claim has `state`, which is `stated` or `not_stated`, and `quotes`, a list of quotations. A `stated` claim has at least one quotation; a `not_stated` claim may carry the sentences that do not settle it, such as two expiry sentences that disagree. A quotation has `text`, the sentence as the page words it, `source`, the service's own page, and `read`, the day it was read. A note has `subject`, `text` and `quotes`.
+
 ### Generated client configs
 
 `/api/v1/openai-clients.json` and `/api/v1/litellm.yaml` follow the same rules. Their *contents* follow the data: a provider enters or leaves them when it becomes, or stops being, verified and OpenAI-compatible with a known base URL and key variable. They carry `env_key`, the **name** of the environment variable for your own API key (for example `GROQ_API_KEY`), never a key value. The other API files do not carry `env_key`.

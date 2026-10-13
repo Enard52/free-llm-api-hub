@@ -4,6 +4,8 @@ import { readFileSync, existsSync, readdirSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
+import Ajv2020 from 'ajv/dist/2020.js';
+import addFormats from 'ajv-formats';
 import { gpuComputeErrors, CLAIM_FIELDS } from './lib/gpu-compute.mjs';
 import { providerFigures } from './lib/figures.mjs';
 
@@ -111,4 +113,70 @@ test('the page is linked from both footers, the hand-written home and the shared
   const shared = readFileSync(join(ROOT, 'site/best/index.html'), 'utf8');
   assert.match(home, /href="free-gpu\/"/);
   assert.match(shared, /href="\.\.\/free-gpu\/"/);
+});
+
+// The section as a file of the stable API (contract v1), with its JSON Schema at a stable address.
+const apiFile = () => JSON.parse(readFileSync(join(ROOT, 'site/api/v1/free-gpu.json'), 'utf8'));
+const apiSchema = () => JSON.parse(readFileSync(join(ROOT, 'data/free-gpu.schema.json'), 'utf8'));
+const compileApiSchema = () => {
+  const ajv = new Ajv2020({ allErrors: true, strict: true, strictTypes: false, validateFormats: true });
+  addFormats(ajv, ['date', 'uri']);
+  return ajv.compile(apiSchema());
+};
+const buildSite = () => execFileSync(process.execPath, [join(ROOT, 'scripts/build.mjs')], { cwd: ROOT, stdio: 'pipe' });
+
+test('free-gpu.json carries the data file as it is and validates against its schema; broken copies fail', () => {
+  buildSite();
+  const file = apiFile();
+  const s = section();
+  assert.deepEqual(file.entries, s.entries, 'the entries are the data file, unchanged');
+  assert.deepEqual(file.notes, s.notes, 'the notes are the data file, unchanged');
+  assert.equal(file.count, s.entries.length);
+  const validate = compileApiSchema();
+  assert.equal(validate(file), true, JSON.stringify(validate.errors));
+  const broken = (mutate) => { const c = structuredClone(file); mutate(c); return validate(c); };
+  assert.equal(broken((c) => { delete c.entries; }), false, 'a file without entries fails');
+  assert.equal(broken((c) => { c.entries[0].claims.expires.state = 'maybe'; }), false, 'a state other than stated or not_stated fails');
+  assert.equal(broken((c) => { delete c.entries[0].claims.quota; }), false, 'an entry without one of its claims fails');
+  assert.equal(broken((c) => { c.entries[0].claims.expires.quotes = [{ text: 'x', source: 'https://example.com' }]; }), false, 'a quotation without its read date fails');
+  assert.equal(broken((c) => { c.dataset = 'other'; }), false, 'another dataset name fails');
+  assert.equal(broken((c) => { c.count = 'two'; }), false, 'a count that is not an integer fails');
+  assert.equal(broken((c) => { c.entries[0].added_in_a_later_minor = 1; }), true, 'a field added within v1 does not break a v1 reader');
+});
+
+test('free-gpu.json enters no count of providers, and its schema is published at the stable address', () => {
+  buildSite();
+  const file = apiFile();
+  assert.ok(file.entries.every((e) => !slugs.has(e.slug)), 'no entry shares a slug with a provider');
+  const all = JSON.parse(readFileSync(join(ROOT, 'site/api/v1/providers.json'), 'utf8'));
+  assert.equal(all.count, providers.length, 'providers.json counts the providers of the dataset only');
+  assert.ok(all.providers.every((p) => !file.entries.some((e) => e.slug === p.slug)), 'providers.json lists none of the entries');
+  const apiDir = join(ROOT, 'site/api/v1');
+  for (const f of readdirSync(apiDir).filter((x) => x.endsWith('.json') && !['free-gpu.json', 'free-gpu.schema.json', 'index.json'].includes(x))) {
+    const text = readFileSync(join(apiDir, f), 'utf8');
+    for (const e of file.entries) assert.ok(!text.includes(`"slug": "${e.slug}"`), `${f} lists the entry ${e.slug}`);
+  }
+  assert.equal(file.schema, apiSchema().$id);
+  assert.equal(file.schema, 'https://freellmapihub.com/api/v1/free-gpu.schema.json');
+  assert.equal(readFileSync(join(ROOT, 'site/api/v1/free-gpu.schema.json'), 'utf8'), readFileSync(join(ROOT, 'data/free-gpu.schema.json'), 'utf8'), 'the published schema is the source file');
+  const index = JSON.parse(readFileSync(join(ROOT, 'site/api/v1/index.json'), 'utf8'));
+  assert.equal(index.endpoints['free-gpu'], 'v1/free-gpu.json');
+  assert.equal(index.endpoints['free-gpu-schema'], 'v1/free-gpu.schema.json');
+});
+
+test('every field of the free-gpu schema is mentioned in docs/api.md', () => {
+  const names = new Set();
+  const walk = (o) => {
+    if (Array.isArray(o)) return o.forEach(walk);
+    if (o && typeof o === 'object') {
+      for (const [k, v] of Object.entries(o)) {
+        if (k === 'properties' && v && typeof v === 'object') Object.keys(v).forEach((n) => names.add(n));
+        walk(v);
+      }
+    }
+  };
+  walk(apiSchema());
+  const doc = readFileSync(join(ROOT, 'docs/api.md'), 'utf8');
+  const missing = [...names].filter((n) => !doc.includes('`' + n + '`'));
+  assert.deepEqual(missing, [], 'fields of the schema missing in docs/api.md');
 });

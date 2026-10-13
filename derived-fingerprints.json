@@ -1,8 +1,10 @@
 {
-  "site/api/index.html": "a72e1c6d39e72eb200c8815606fe3aa17f19f4c1a6d3e2e1d524ea7589783d73",
+  "site/api/index.html": "083e0228ac121eb28ac187dbc4bf52b620a97dc16938ffda9021ec4dc7e1de85",
   "site/api/v1/best.json": "50f4e7219e49e46e88861ed0cb65979edcc6caeab45bc7bc76bd3cb93b632921",
   "site/api/v1/commercial.json": "0774dd0653c91c03692a83648a5bf7de978db740a11487012990cfce3a806fad",
-  "site/api/v1/index.json": "d1bfd58a02e80889e15b3ae15a2dcc4203ba58f70f0f602ef0440c3e6d9ed2bc",
+  "site/api/v1/free-gpu.json": "094e46b053b6780bcfbb5e70d22d981df784edd892a8e5c0b38b97fbf37fb5eb",
+  "site/api/v1/free-gpu.schema.json": "5c3f63ad8839f7eda651983df711c9f62a5db51a25ea5937f48b4b84776e5520",
+  "site/api/v1/index.json": "d39ae773c8aa33efc372c85b9f70b0cbbb29f4654ad69f0969565ced6b581b8d",
   "site/api/v1/litellm.yaml": "807031d8e20b7c188c8d541c16754d39227a936da19d2803a09355083d063e9e",
   "site/api/v1/modality/audio.json": "b9700efdf53357351c74d5b22945879455b22794a6ab876d2fe6ed393759ed39",
   "site/api/v1/modality/embeddings.json": "27336781fa1d70eed58ceed164be5fb8ea153da43a27e0a241d3b5e5a9a196de",
