@@ -5,7 +5,7 @@
 // A category that is missing or has a null score (Lighthouse could not compute it)
 // is a failure, never a pass: "no score" must not read as "fine".
 
-export const THRESHOLDS = Object.freeze({ accessibility: 0.9, performance: 0.8 });
+export const THRESHOLDS = Object.freeze({ accessibility: 0.95, performance: 0.8 });
 
 export function evaluate(url, report, thresholds = THRESHOLDS) {
   const failures = [];

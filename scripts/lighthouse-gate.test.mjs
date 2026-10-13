@@ -9,9 +9,9 @@ test('scores at or above the thresholds pass', () => {
 });
 
 test('accessibility just below the threshold fails and names the page', () => {
-  const f = evaluate('/best/', report(0.89, 1));
+  const f = evaluate('/best/', report(0.94, 1));
   assert.equal(f.length, 1);
-  assert.match(f[0], /^\/best\/: accessibility 0\.89 is below 0\.90$/);
+  assert.match(f[0], /^\/best\/: accessibility 0\.94 is below 0\.95$/);
 });
 
 test('performance just below the threshold fails', () => {
