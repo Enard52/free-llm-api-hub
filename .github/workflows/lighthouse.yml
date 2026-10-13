@@ -27,9 +27,15 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+          fetch-depth: 0 # full history: build.mjs mines per-provider history from git log
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version-file: .nvmrc
+
+      # /best/ and the provider pages are generated into site/ and are not
+      # committed, so the site has to be built before it can be served.
+      - name: Build the site
+        run: node scripts/build.mjs
 
       - name: Install Lighthouse (locked, no lifecycle scripts)
         working-directory: tools/lighthouse

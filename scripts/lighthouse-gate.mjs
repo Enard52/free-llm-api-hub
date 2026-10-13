@@ -38,12 +38,19 @@ const failures = [];
 try {
   for (const page of pages) {
     // Asynchronous on purpose: a synchronous child process would block this process's event loop, and the server below could never answer Lighthouse.
-    const { stdout: out } = await run(lighthouse, [
-      base + page, '--output=json', '--quiet',
-      '--only-categories=accessibility,performance',
-      '--chrome-flags=--headless --no-sandbox',
-    ], { maxBuffer: 64 * 1024 * 1024 });
-    const report = JSON.parse(out);
+    let report;
+    try {
+      const { stdout: out } = await run(lighthouse, [
+        base + page, '--output=json', '--quiet',
+        '--only-categories=accessibility,performance',
+        '--chrome-flags=--headless --no-sandbox',
+      ], { maxBuffer: 64 * 1024 * 1024 });
+      report = JSON.parse(out);
+    } catch (err) {
+      // Lighthouse exits non-zero when it cannot load the page; keep the log readable.
+      failures.push(`${page}: Lighthouse could not measure it: ${String(err.stderr || err.message).trim().slice(0, 300)}`);
+      continue;
+    }
     const scores = Object.entries(report.categories).map(([k, v]) => `${k} ${v.score}`).join(', ');
     console.log(`${page}: ${scores}`);
     failures.push(...evaluate(page, report));
