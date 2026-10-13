@@ -16,6 +16,7 @@ import { providerFigures, figureErrors } from './lib/figures.mjs';
 import { tierForRating, nearBoundary, MODEL_TIER_MIN_VOTES } from './lib/model-tier.mjs';
 import { editorialErrors } from './lib/score.mjs';
 import { readdirSync } from 'node:fs';
+import { gpuComputeErrors } from './lib/gpu-compute.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const FILE = process.argv[2] ? resolve(process.argv[2]) : join(ROOT, 'data/providers.json');
@@ -218,6 +219,22 @@ try {
     }
   }
 } catch (e) { errors.push('programs.json: ' + e.message); }
+
+// ---------- gpu-compute.json (Free GPU compute: a section apart from the ranking) ----------
+// Skipped for fixture runs (argv[2]), like best.json: a fixture providers.json must not be failed by it.
+let gpuComputeCount = 0;
+if (!process.argv[2]) {
+  try {
+    const gpu = JSON.parse(readFileSync(join(ROOT, 'data/gpu-compute.json'), 'utf8'));
+    const gpuSchema = JSON.parse(readFileSync(join(ROOT, 'data/gpu-compute.schema.json'), 'utf8'));
+    const gpuAjv = new Ajv2020({ allErrors: true, strict: true });
+    addFormats(gpuAjv);
+    const gpuValidate = gpuAjv.compile(gpuSchema);
+    if (!gpuValidate(gpu)) for (const e of gpuValidate.errors) errors.push(`gpu-compute.json: ${e.instancePath || '/'} ${e.message}`);
+    errors.push(...gpuComputeErrors(gpu, new Set(data.providers.map((p) => p.slug))));
+    gpuComputeCount = gpu.entries.length;
+  } catch (e) { errors.push('gpu-compute.json: ' + e.message); }
+}
 
 // ---------- best.json (editorial ranking must only feature verified providers) ----------
 // The /best page and the README top-20 are the first thing visitors trust.
