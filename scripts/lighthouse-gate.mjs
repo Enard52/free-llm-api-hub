@@ -9,7 +9,7 @@ import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { fileURLToPath } from 'node:url';
 import { dirname, join, extname, normalize } from 'node:path';
-import { evaluate } from './lib/lighthouse-gate.mjs';
+import { evaluate, medianReport } from './lib/lighthouse-gate.mjs';
 
 const run = promisify(execFile);
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
@@ -34,25 +34,30 @@ await new Promise((ok) => server.listen(0, '127.0.0.1', ok));
 const base = `http://127.0.0.1:${server.address().port}`;
 const pages = ['/', '/best/', '/coverage/', '/p/ai21.html'];
 const lighthouse = join(ROOT, 'tools/lighthouse/node_modules/.bin/lighthouse');
+const RUNS = 3;
 const failures = [];
 try {
   for (const page of pages) {
     // Asynchronous on purpose: a synchronous child process would block this process's event loop, and the server below could never answer Lighthouse.
-    let report;
-    try {
-      const { stdout: out } = await run(lighthouse, [
-        base + page, '--output=json', '--quiet',
-        '--only-categories=accessibility,performance',
-        '--chrome-flags=--headless --no-sandbox',
-      ], { maxBuffer: 64 * 1024 * 1024 });
-      report = JSON.parse(out);
-    } catch (err) {
-      // Lighthouse exits non-zero when it cannot load the page; keep the log readable.
-      failures.push(`${page}: Lighthouse could not measure it: ${String(err.stderr || err.message).trim().slice(0, 300)}`);
-      continue;
+    const reports = [];
+    for (let i = 0; i < RUNS; i++) {
+      try {
+        const { stdout: out } = await run(lighthouse, [
+          base + page, '--output=json', '--quiet',
+          '--only-categories=accessibility,performance',
+          '--chrome-flags=--headless --no-sandbox',
+        ], { maxBuffer: 64 * 1024 * 1024 });
+        reports.push(JSON.parse(out));
+      } catch (err) {
+        // Lighthouse exits non-zero when it cannot load the page; keep the log readable.
+        failures.push(`${page}: Lighthouse could not measure it: ${String(err.stderr || err.message).trim().slice(0, 300)}`);
+        break;
+      }
     }
-    const scores = Object.entries(report.categories).map(([k, v]) => `${k} ${v.score}`).join(', ');
-    console.log(`${page}: ${scores}`);
+    if (reports.length < RUNS) continue;
+    const report = medianReport(reports);
+    const all = reports.map((r) => `${r.categories.performance.score}`).join('/');
+    console.log(`${page}: median of ${RUNS} runs: performance ${report.categories.performance.score} (runs ${all}), accessibility ${report.categories.accessibility.score}`);
     failures.push(...evaluate(page, report));
   }
 } finally {

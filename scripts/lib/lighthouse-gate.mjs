@@ -20,3 +20,20 @@ export function evaluate(url, report, thresholds = THRESHOLDS) {
   }
   return failures;
 }
+
+// Lighthouse performance moves between runs on a shared runner (the home page scored
+// 0.78 and then 0.91 in two CI runs of the same commit), so the gate judges the median
+// of several runs. The result has the shape evaluate() reads.
+export function medianReport(reports) {
+  const names = new Set(reports.flatMap((r) => Object.keys((r && r.categories) || {})));
+  const categories = {};
+  for (const name of names) {
+    const scores = reports.map((r) => r && r.categories && r.categories[name] && r.categories[name].score);
+    // One run without a score makes the median unreliable: keep it as "no score".
+    if (scores.some((x) => typeof x !== 'number')) { categories[name] = { score: null }; continue; }
+    const sorted = [...scores].sort((a, b) => a - b);
+    const mid = sorted.length >> 1;
+    categories[name] = { score: sorted.length % 2 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2 };
+  }
+  return { categories };
+}
