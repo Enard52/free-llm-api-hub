@@ -25,13 +25,12 @@ A living, maintainer-facing checklist of concrete follow-ups. Direction and prin
 - ✅ **Two new modality guides** — image generation + OCR/document-AI (7 guides total), mapping onto the new providers.
 - ✅ **Explorer table polish** — desktop zebra striping, sortable-column affordance, width cap on the widest column, and a **NEW** marker (via the `added` field, rendered by the shared row code in both SSR and client).
 - ✅ **Per-provider OG images** — `og.mjs` renders one per provider (`site/og/p/<slug>.png`), wired via `ogImage` in build.mjs and verified by `check-og.mjs`.
-- [ ] Optional: export `added` in the CSV/YAML column set (currently JSON-only).
 
 ## Dataset / schema
 
 - [ ] `speed_tier` (or tokens/sec) as a defensible, sourced field → enables an honest "fastest free LLM APIs" collection.
-- ✅ **Stable release tag per dataset `version`** — tagging `vX.Y.Z` at each schema/dataset version so downstream consumers can pin a snapshot (e.g. `v2.5.0`). Tag each future version bump.
-- [ ] History / diffs: track how a provider's free tier changed over time (a generated changelog per provider from git history of `data/providers.json`).
+- ✅ **Stable release tag per dataset `version`** — tagging `vX.Y.Z` at each schema/dataset version so downstream consumers can pin a snapshot (e.g. `v2.5.0`). The `Tag release` workflow now creates the tag when `version` in `data/providers.json` advances; see [RELEASING.md](../RELEASING.md).
+- ✅ **History / diffs** — a "Change history" section on each provider page and `/api/v1/history.json`, mined from the git history of `data/providers.json` by `scripts/lib/history.mjs` (also the `/changes/` feed).
 
 ## Provider leads — verify before adding
 
@@ -45,12 +44,8 @@ only what confirms.
   **no free-trial credit is documented** on its pricing/docs pages (campaign-
   dependent). The most-wanted net-new LLM — confirm a citable free tier (or probe
   a fresh signup) before adding. Also Anthropic-compatible worth noting.
-- [ ] **Upstage** (Solar LLM + Document Parse/OCR) — high-value LLM+OCR combo, but
-  the free amount is fuzzy on the pricing page ("10 free runs" on Studio) and the
-  Solar base URL/OpenAI-compat wasn't confirmable on-page. Verify via
-  `console.upstage.ai/docs`.
-- [ ] **Veryfi** (OCR) — pricing page shows both "Free Forever 100 docs/mo" and a
-  "14-day trial, no card" — contradictory; resolve which is current.
+- ✅ **Upstage** (Solar LLM + Document Parse/OCR) — now a provider in the dataset (re-verified 2026-10-08).
+- ✅ **Veryfi** (OCR) — now a provider in the dataset (re-verified 2026-10-08).
 - [ ] **Replicate** (image/video) — "run select models for free… after a bit
   you'll be asked to set up billing"; no card to start but the free amount isn't
   quantified. Add only if a concrete allowance can be cited.
@@ -61,12 +56,11 @@ only what confirms.
   avoid tilting the dataset into an OCR directory): Datalab, Reducto, ABBYY Cloud
   OCR SDK, Parsio, Airparser, Extracta.ai, Pen-to-Print. Add selectively if a gap
   appears.
-- [ ] **Speech tail:** Voicegain ($50 STT credits, no card), Smallest.ai ($10),
-  Retell AI ($10 voice-agent), Camb.ai already added.
+- ✅ **Speech tail:** Voicegain, Smallest.ai, Retell AI and Camb.ai are all providers in the dataset (re-verified 2026-10-08).
 - [ ] **From `npm run discover` (2026-07-31):** `inclusionai` (InclusionAI /
-  Ant Group — Ling/Bailing models appear free on OpenRouter) and `poolside` show
-  free models we don't cover — check whether either lab exposes its OWN direct
-  free API tier before adding.
+  Ant Group — Ling/Bailing models appear free on OpenRouter) shows free models we
+  don't cover — check whether the lab exposes its OWN direct free API tier before
+  adding. (`poolside` is now a provider in the dataset.)
 - [ ] **Chinese labs (region-gated):** Baidu Qianfan / ERNIE (1M free tokens per
   model, big catalog), ByteDance Volcengine/Doubao, StepFun, SenseNova — real free
   tiers but mainland phone/ID gates make them poor fits for an international
