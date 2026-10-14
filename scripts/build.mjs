@@ -1591,14 +1591,18 @@ for (const g of GUIDES) {
 mkdirSync(join(ROOT, 'site/api/v1/modality'), { recursive: true });
 const apiBase = { dataset: 'free-llm-api-hub', version: data.version, generated: data.generated, license: 'MIT', homepage: `${SITE}/`, docs: `${SITE}/api/` };
 const writeApi = (rel, obj) => writeFileSync(join(ROOT, `site/api/v1/${rel}`), JSON.stringify(obj, null, 2) + '\n');
-writeApi('providers.json', { ...apiBase, count: publicProviders.length, providers: publicProviders });
+// /api/v1 contract: fields are only added, never retyped. commercial_ok is true|false|null in v1,
+// so 'conditional' emits as null here with commercial_ok_condition carrying the explanation.
+const toApiV1Provider = (p) => (p.commercial_ok === 'conditional' ? { ...p, commercial_ok: null } : p);
+const apiProviders = publicProviders.map(toApiV1Provider);
+writeApi('providers.json', { ...apiBase, count: apiProviders.length, providers: apiProviders });
 writeApi('programs.json', { ...apiBase, startups: programs.startups, research: programs.research });
 // The field-level before/after values live in changes.json; history.json keeps
 // its published shape (date, kind, fields, text).
 const historyPublic = Object.fromEntries(Object.entries(historyBySlug).map(([slug, events]) => [slug, events.map(({ changes, ...e }) => e)]));
 writeApi('history.json', { ...apiBase, description: 'Per-provider change history mined from the git log of providers.json.', history: historyPublic });
 writeApi('changes.json', { ...apiBase, description: 'Field-level provider changes (from/to), grouped by ISO week, newest first: the last 12 weeks ending at the newest change. Mined from the git log of providers.json.', weeks: changeWeeks.map(({ week, start, end, count, changes }) => ({ week, start, end, count, changes: changes.map(({ date, slug, name, field, from, to }) => ({ date, slug, name, field, from, to })) })) });
-writeApi('best.json', { ...apiBase, description: 'The top 10 free LLM APIs by the FLLMAPIHUB score, in rank order, with the score and its parts. Never padded to ten. Every pick carries its full verified profile. Method: ' + SITE + '/best/methodology/', updated: data.generated, count: topList.length, picks: topList.map((e) => ({ rank: e.rank, podium: e.podium, score: Math.round(e.total * 10) / 10, math: Math.round(e.math * 10) / 10, editorial: Math.round(e.editorial * 10) / 10, confirmed: e.confirmed, of: e.of, parts: Object.fromEntries(Object.entries(e.parts).map(([k, v]) => [k, Math.round(v * 10) / 10])), tier_near_threshold: e.boundary, ...e.p })) });
+writeApi('best.json', { ...apiBase, description: 'The top 10 free LLM APIs by the FLLMAPIHUB score, in rank order, with the score and its parts. Never padded to ten. Every pick carries its full verified profile. Method: ' + SITE + '/best/methodology/', updated: data.generated, count: topList.length, picks: topList.map((e) => ({ rank: e.rank, podium: e.podium, score: Math.round(e.total * 10) / 10, math: Math.round(e.math * 10) / 10, editorial: Math.round(e.editorial * 10) / 10, confirmed: e.confirmed, of: e.of, parts: Object.fromEntries(Object.entries(e.parts).map(([k, v]) => [k, Math.round(v * 10) / 10])), tier_near_threshold: e.boundary, ...toApiV1Provider(e.p) })) });
 // /api/v1/score.json: the whole score, not only the top 10. Same numbers as best.json (one rounding rule, one source).
 const r1 = (x) => Math.round(x * 10) / 10;
 const SCORE_SCHEMA_URL = SITE + '/api/v1/score.schema.json';
@@ -1678,12 +1682,12 @@ const API_SLICES = {
   'openai-compatible': (p) => p.openai_compatible === true,
 };
 for (const [name, fn] of Object.entries(API_SLICES)) {
-  const list = publicProviders.filter(fn);
+  const list = apiProviders.filter(fn);
   writeApi(`${name}.json`, { ...apiBase, slice: name, count: list.length, providers: list });
 }
 const API_MODS = ['text', 'vision', 'image', 'audio', 'embeddings', 'rerank', 'ocr'];
 for (const m of API_MODS) {
-  const list = publicProviders.filter((p) => (p.modalities || []).includes(m));
+  const list = apiProviders.filter((p) => (p.modalities || []).includes(m));
   writeApi(`modality/${m}.json`, { ...apiBase, modality: m, count: list.length, providers: list });
 }
 // Client configs (LiteLLM proxy + OpenAI SDK) for the verified OpenAI-compatible
