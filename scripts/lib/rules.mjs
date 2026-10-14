@@ -26,7 +26,7 @@ export function recScore(p) {
   let s = 0;
   if (p.card_required === false) s += 3; else if (p.card_required === true) s -= 3;
   if (p.phone_required === false) s += 2; else if (p.phone_required === true) s -= 2;
-  if (p.commercial_ok === true) s += 2; else if (p.commercial_ok === false) s -= 2;
+  if (p.commercial_ok === true) s += 2; else if (p.commercial_ok === 'conditional') s += 1; else if (p.commercial_ok === false) s -= 2;
   if (p.openai_compatible === true) s += 1;
   if (p.category === 'ongoing') s += 1;
   if (p.free_type === 'perpetual') s += 1;
@@ -45,7 +45,7 @@ export const freeTypeRank = (p) => (FREE_TYPE_RANK[p.free_type] ?? 4);
 export const FLAG_PAIRS = [
   ['card_required', false, 'ic-nocard', 'no card'], ['card_required', true, 'ic-card', 'card'],
   ['phone_required', false, 'ic-nophone', 'no phone'], ['phone_required', true, 'ic-phone', 'phone'],
-  ['commercial_ok', true, 'ic-building', 'commercial'], ['commercial_ok', false, 'ic-flask', 'eval only'],
+  ['commercial_ok', true, 'ic-building', 'commercial'], ['commercial_ok', 'conditional', 'ic-building', 'commercial (conditional)'], ['commercial_ok', false, 'ic-flask', 'eval only'],
   ['openai_compatible', true, 'ic-code', 'OpenAI-compat'],
 ];
 

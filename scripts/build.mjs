@@ -71,6 +71,7 @@ function flags(p) {
   if (p.phone_required === false) parts.push('📵 no phone');
   if (p.phone_required === true) parts.push('📱 phone');
   if (p.commercial_ok === true) parts.push('🏢 commercial OK');
+  if (p.commercial_ok === 'conditional') parts.push('🏢 commercial OK (conditional)');
   if (p.commercial_ok === false) parts.push('🔬 eval only');
   if (p.openai_compatible === true) parts.push('🔌 OpenAI-compat');
   return parts.length ? `<br><sub>${parts.join(' · ')}</sub>` : '';
@@ -518,6 +519,7 @@ function collectionTableHtml(rows, opts = {}) {
     if (p.phone_required === false) parts.push(`${IC('ic-nophone')}no phone`);
     if (p.phone_required === true) parts.push(`${IC('ic-phone')}phone`);
     if (p.commercial_ok === true) parts.push(`${IC('ic-building')}commercial OK`);
+    if (p.commercial_ok === 'conditional') parts.push(`${IC('ic-building')}commercial OK (conditional)`);
     if (p.commercial_ok === false) parts.push(`${IC('ic-flask')}eval only`);
     if (p.openai_compatible === true) parts.push(`${IC('ic-code')}OpenAI-compat`);
     return parts.length ? `<div class="flags">${parts.map((t) => `<span>${t}</span>`).join('')}</div>` : '';
@@ -1060,7 +1062,9 @@ const provFlagsHtml = (p) => {
   const add = (cond, ic, txt) => { if (cond) parts.push(`<span class="flag-badge">${IC(ic)}${txt}</span>`); };
   add(p.card_required === false, 'ic-nocard', 'no card'); add(p.card_required === true, 'ic-card', 'card required');
   add(p.phone_required === false, 'ic-nophone', 'no phone'); add(p.phone_required === true, 'ic-phone', 'phone required');
-  add(p.commercial_ok === true, 'ic-building', 'commercial OK'); add(p.commercial_ok === false, 'ic-flask', 'eval only');
+  add(p.commercial_ok === true, 'ic-building', 'commercial OK');
+  add(p.commercial_ok === 'conditional', 'ic-building', 'commercial OK (conditional)');
+  add(p.commercial_ok === false, 'ic-flask', 'eval only');
   add(p.openai_compatible === true, 'ic-code', 'OpenAI-compatible');
   return parts.join('');
 };
@@ -1809,7 +1813,7 @@ const llmsTxt =
   `- [Startup credits](${SITE}/programs/startups)\n- [Student & research credits](${SITE}/programs/research)\n`;
 writeFileSync(join(ROOT, 'site/llms.txt'), llmsTxt);
 
-const yn = (v, yes, no) => v === true ? yes : v === false ? no : 'unknown';
+const yn = (v, yes, no) => v === true ? yes : v === false ? no : v === 'conditional' ? 'conditional' : 'unknown';
 const provBlock = (p) => {
   const gates = [
     `card required: ${yn(p.card_required, 'yes', 'no')}`,
