@@ -1834,7 +1834,7 @@ const coverageByHand = (providers) => {
   const verifiedTextNotTrial = (p) => verifiedText(p) && p.free_type !== 'trial-credit';
   add('card_required', verified, (p) => p.card_required === true || p.card_required === false);
   add('phone_required', verified, (p) => p.phone_required === true || p.phone_required === false);
-  add('commercial_ok', verified, (p) => p.commercial_ok === true || p.commercial_ok === false);
+  add('commercial_ok', verified, (p) => p.commercial_ok === true || p.commercial_ok === false || p.commercial_ok === 'conditional');
   add('openai_compatible', verified, (p) => p.openai_compatible === true || p.openai_compatible === false);
   add('model_tier', verifiedTextNotTrial, (p) => typeof p.model_tier === 'number');
   add('free_limits', verifiedTextNotTrial, (p) => p.free_limits !== null && p.free_limits !== undefined);
@@ -2355,6 +2355,20 @@ test('the no-training collection carries the plan header and a plan mark on ever
   assert.equal(marks, rows.length, 'one mark per row');
   const other = readFileSync(join(ROOT, 'collections/no-credit-card.md'), 'utf8');
   assert.ok(!other.includes('plan: not checked yet') && !other.includes('plan not named') && !other.includes(header), 'other collections are unchanged');
+});
+
+test('commercial_ok "conditional" is excluded from commercial-use collection and rendered on card', () => {
+  run(['scripts/build.mjs']);
+  const providers = JSON.parse(readFileSync(DATA, 'utf8')).providers;
+  const commMd = readFileSync(join(ROOT, 'collections/commercial-use.md'), 'utf8');
+  const commHtml = readFileSync(join(ROOT, 'site/collections/commercial-use.html'), 'utf8');
+  for (const p of providers.filter((p) => p.commercial_ok !== true)) {
+    assert.ok(!commMd.includes(`**[${p.name}]`), `${p.name} should not be in commercial-use.md`);
+    assert.ok(!commHtml.includes(`href="../p/${p.slug}"`), `${p.slug} should not be in commercial-use.html`);
+  }
+  const hordePage = readFileSync(join(ROOT, 'site/p/ai-horde.html'), 'utf8');
+  assert.ok(hordePage.includes('commercial OK (conditional)'), 'AI Horde page must show conditional commercial flag');
+  assert.ok(hordePage.includes('Per-model licence'), 'AI Horde page must show the condition reason');
 });
 
 // The point of the private copy: the builds of this file must not write in the tree of the repository, or they race
