@@ -145,12 +145,6 @@
       "of": 6,
       "rank": null
     },
-    "ai-horde": {
-      "total": 34.8,
-      "confirmed": 3,
-      "of": 6,
-      "rank": null
-    },
     "sarvam-ai": {
       "total": 34.5,
       "confirmed": 2,
@@ -232,6 +226,12 @@
     "nebius": {
       "total": 33.2,
       "confirmed": 3,
+      "of": 6,
+      "rank": null
+    },
+    "ai-horde": {
+      "total": 32.5,
+      "confirmed": 2,
       "of": 6,
       "rank": null
     },

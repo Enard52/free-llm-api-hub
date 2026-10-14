@@ -2371,6 +2371,39 @@ test('commercial_ok "conditional" is excluded from commercial-use collection and
   assert.ok(hordePage.includes('Per-model licence'), 'AI Horde page must show the condition reason');
 });
 
+test('no /api/v1/ JSON contains "conditional" as a commercial_ok value, and emits commercial_ok_condition', () => {
+  run(['scripts/build.mjs']);
+  const v1 = join(ROOT, 'site/api/v1');
+  const findJsonFiles = (dir) => {
+    let out = [];
+    for (const ent of readdirSync(dir, { withFileTypes: true })) {
+      const full = join(dir, ent.name);
+      if (ent.isDirectory()) out.push(...findJsonFiles(full));
+      else if (ent.isFile() && ent.name.endsWith('.json') && !ent.name.endsWith('.schema.json') && ent.name !== 'schema.json') {
+        out.push(full);
+      }
+    }
+    return out;
+  };
+  const files = findJsonFiles(v1);
+  assert.ok(files.length > 0, 'api v1 has generated json files');
+  for (const f of files) {
+    const raw = readFileSync(f, 'utf8');
+    assert.ok(!raw.includes('"commercial_ok": "conditional"'), `${f} must not contain "conditional" as commercial_ok`);
+    const parsed = JSON.parse(raw);
+    const list = Array.isArray(parsed.providers) ? parsed.providers : Array.isArray(parsed.picks) ? parsed.picks : [];
+    for (const p of list) {
+      if ('commercial_ok' in p) {
+        assert.notEqual(p.commercial_ok, 'conditional', `${f} (${p.slug}): commercial_ok must not be "conditional"`);
+        assert.ok(p.commercial_ok === true || p.commercial_ok === false || p.commercial_ok === null, `${f}: commercial_ok must be tri-state`);
+      }
+    }
+  }
+  const horde = JSON.parse(readFileSync(join(v1, 'providers.json'), 'utf8')).providers.find((p) => p.slug === 'ai-horde');
+  assert.equal(horde.commercial_ok, null, 'ai-horde commercial_ok must be null in /api/v1/');
+  assert.ok(horde.commercial_ok_condition, 'ai-horde commercial_ok_condition must be present in /api/v1/');
+});
+
 // The point of the private copy: the builds of this file must not write in the tree of the repository, or they race
 // with the builds of the other test files, which is what failed in CI (ENOTEMPTY on site/p).
 test('the builds of this file leave the generated folders of the repository untouched', () => {
