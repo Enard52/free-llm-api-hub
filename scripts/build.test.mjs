@@ -2865,15 +2865,22 @@ test('no /api/v1/ JSON contains "conditional" as a commercial_ok value, and emit
   assert.equal(horde.commercial_ok, null, 'ai-horde commercial_ok must be null in /api/v1/');
   assert.ok(horde.commercial_ok_condition, 'ai-horde commercial_ok_condition must be present in /api/v1/');
 
-  const changes = JSON.parse(readFileSync(join(v1, 'changes.json'), 'utf8'));
-  for (const week of changes.weeks || []) {
-    for (const c of week.changes || []) {
-      if (c.field === 'commercial_ok') {
-        assert.notEqual(c.from, 'conditional', 'changes.json: from must not be "conditional"');
-        assert.notEqual(c.to, 'conditional', 'changes.json: to must not be "conditional"');
-      }
-    }
+  // changes.json carries the before/after value of every field, so it is the one place where
+  // 'conditional' can reach /api/v1/ without being a provider field. The walk is over every row,
+  // not only the commercial_ok ones, on purpose: 'conditional' is only ever a commercial_ok value,
+  // so the blanket rule is the same rule and it never goes vacuous if the published 12-week window
+  // no longer holds a commercial_ok change.
+  const changesFile = join(v1, 'changes.json');
+  const rows = ((JSON.parse(readFileSync(changesFile, 'utf8')).weeks) || []).flatMap((w) => w.changes || []);
+  assert.ok(rows.length > 0, 'changes.json publishes change rows, so this walk is not vacuous');
+  for (const c of rows) {
+    for (const k of ['from', 'to'])
+      assert.notEqual(c[k], 'conditional', `changes.json: the ${c.field} change of ${c.slug} must not carry "conditional" in "${k}"`);
+    if (c.field === 'commercial_ok')
+      for (const k of ['from', 'to'])
+        assert.ok(c[k] === true || c[k] === false || c[k] === null, `changes.json: commercial_ok "${k}" must be true, false or null`);
   }
+  assert.ok(!/"(from|to)": "conditional"/.test(readFileSync(changesFile, 'utf8')), 'changes.json: no from/to holds the string "conditional"');
 });
 
 // The point of the private copy: the builds of this file must not write in the tree of the repository, or they race
