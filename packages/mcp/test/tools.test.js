@@ -234,7 +234,7 @@ test('dataset_info: version, counts and freshness', () => {
 });
 
 test('get_provider shows commercial_ok_condition when present, and commercial_ok remains not confirmed', () => {
-  const customData = {
+  const customData = normalizeDataset({
     ...data,
     providers: [
       ...data.providers,
@@ -243,17 +243,21 @@ test('get_provider shows commercial_ok_condition when present, and commercial_ok
         name: 'Conditional Prov',
         category: 'ongoing',
         free_tier: 'Free tier',
-        commercial_ok: null,
+        commercial_ok: 'conditional',
         commercial_ok_condition: 'Per-model licence terms apply',
         docs_url: 'https://cond.example',
         last_verified: '2026-10-01',
         verified: true,
       },
     ],
-  };
+  }, 'test');
   const r = getProvider(customData, { slug: 'conditional-prov' });
   assert.equal(r.provider.commercial_ok, null);
   assert.equal(r.provider.commercial_ok_condition, 'Per-model licence terms apply');
   assert.equal(r.flags.commercial_ok, 'not confirmed');
   assert.ok(r.unconfirmed_fields.includes('commercial_ok'));
+
+  const s = searchProviders(customData, { commercial_ok: true });
+  assert.ok(!s.providers.some((p) => p.slug === 'conditional-prov'));
+  assert.equal(s.excluded_unconfirmed?.commercial_ok, 3);
 });

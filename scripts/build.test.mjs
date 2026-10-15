@@ -2255,7 +2255,7 @@ const coverageByHand = (providers) => {
   const verifiedTextNotTrial = (p) => verifiedText(p) && p.free_type !== 'trial-credit';
   add('card_required', verified, (p) => p.card_required === true || p.card_required === false);
   add('phone_required', verified, (p) => p.phone_required === true || p.phone_required === false);
-  add('commercial_ok', verified, (p) => p.commercial_ok === true || p.commercial_ok === false || p.commercial_ok === 'conditional');
+  add('commercial_ok', verified, (p) => p.commercial_ok === true || p.commercial_ok === false);
   add('openai_compatible', verified, (p) => p.openai_compatible === true || p.openai_compatible === false);
   add('model_tier', verifiedTextNotTrial, (p) => typeof p.model_tier === 'number');
   add('free_limits', verifiedTextNotTrial, (p) => p.free_limits !== null && p.free_limits !== undefined);
@@ -2864,6 +2864,16 @@ test('no /api/v1/ JSON contains "conditional" as a commercial_ok value, and emit
   const horde = JSON.parse(readFileSync(join(v1, 'providers.json'), 'utf8')).providers.find((p) => p.slug === 'ai-horde');
   assert.equal(horde.commercial_ok, null, 'ai-horde commercial_ok must be null in /api/v1/');
   assert.ok(horde.commercial_ok_condition, 'ai-horde commercial_ok_condition must be present in /api/v1/');
+
+  const changes = JSON.parse(readFileSync(join(v1, 'changes.json'), 'utf8'));
+  for (const week of changes.weeks || []) {
+    for (const c of week.changes || []) {
+      if (c.field === 'commercial_ok') {
+        assert.notEqual(c.from, 'conditional', 'changes.json: from must not be "conditional"');
+        assert.notEqual(c.to, 'conditional', 'changes.json: to must not be "conditional"');
+      }
+    }
+  }
 });
 
 // The point of the private copy: the builds of this file must not write in the tree of the repository, or they race
